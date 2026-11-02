@@ -14,8 +14,8 @@ const Tree = ({ x, y, s = 1 }: { x: number; y: number; s?: number }) => (
 
 // m1: a credit travels from the land to a buyer and is then retired.
 const Credit = (L: L) => <>
-  <Tree x={46} y={110} s={1.1} />
-  <Label x={46} y={130} t={L("Ardhi inatunzwa", "Land is cared for")} />
+  <Tree x={56} y={110} s={1.1} />
+  <Label x={56} y={130} t={L("Ardhi inatunzwa", "Land is cared for")} />
   <Arrow x1={92} y1={80} x2={124} y2={80} />
   <rect x="130" y="52" width="92" height="56" rx="8" fill="#fbeec6" stroke="#c9a23f" />
   <Label x={176} y={76} t={L("Mkopo 1", "1 credit")} bold /><Label x={176} y={94} t={L("= tani 1 CO2", "= 1 tonne CO2")} />
