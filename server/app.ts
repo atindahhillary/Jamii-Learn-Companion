@@ -179,6 +179,21 @@ app.post("/learn/reflect", auth, async (c) => {
   await saveInsight(c.get("user"), text, m.theme);
   return c.json({ ok: true });
 });
+// Questions asked mid-lesson skip the listening intake, so a learner is never pulled out of the walk.
+app.post("/learn/ask", auth, async (c) => {
+  const u = c.get("user");
+  if (await limited(`chat:${u.id}`, 40, 3600)) return c.json({ error: "rate" }, 429);
+  const text = clean((await body(c)).text, 800);
+  return text ? c.json(await respond(u, text, "web", "ask", undefined, true)) : c.json({ error: "fields" }, 400);
+});
+app.get("/assignments", auth, async (c) => c.json(await q("select id, module_id, body, feedback from assignments where user_id = $1 order by id", [c.get("user").id])));
+app.post("/assignments", auth, async (c) => {
+  const u = c.get("user"), b = await body(c), text = redact(clean(b.text, 1500));
+  if (!MODULES.some((m) => m.id === b.moduleId) || !text) return c.json({ error: "fields" }, 400);
+  if (await limited(`work:${u.id}`, 30, 3600)) return c.json({ error: "rate" }, 429);
+  await q("insert into assignments (user_id, module_id, body) values ($1,$2,$3) on conflict (user_id, module_id) do update set body = excluded.body, feedback = null, reviewed_by = null, updated_at = now()", [u.id, b.moduleId, text]);
+  return c.json({ ok: true });
+});
 app.post("/learn/practice", auth, async (c) => {
   const score = Math.max(0, Math.min(100, Number((await body(c)).score) || 0));
   await q("insert into progress (user_id, module_id, score) values ($1,'roleplay',$2) on conflict (user_id, module_id) do update set score = greatest(progress.score, excluded.score), updated_at = now()", [c.get("user").id, score]);
@@ -332,6 +347,14 @@ app.get("/admin/report.csv", async (c) => {
   c.header("content-type", "text/csv; charset=utf-8");
   c.header("content-disposition", 'attachment; filename="jamii-learn-companion-report.csv"');
   return c.body(rows.map((x) => x.join(",")).join("\n"));
+});
+app.get("/admin/assignments", async (c) => c.json(await q("select a.id, a.module_id, a.body, a.feedback, u.name from assignments a join users u on u.id = a.user_id order by a.feedback is not null, a.updated_at desc limit 200")));
+app.post("/admin/assignments/:id/feedback", async (c) => {
+  const text = redact(clean((await body(c)).text, 600));
+  if (!text) return c.json({ error: "fields" }, 400);
+  await q("update assignments set feedback = $1, reviewed_by = $2 where id = $3", [text, c.get("user").id, Number(c.req.param("id"))]);
+  await audit(c.get("user").id, "assignment_feedback", c.req.param("id"));
+  return c.json({ ok: true });
 });
 app.get("/admin/flags", async (c) => c.json(await q("select m.id, m.body, m.flag_reason, m.expert, m.created_at from messages m where m.flagged and not m.resolved order by m.id desc limit 50")));
 app.post("/admin/flags/:id/resolve", async (c) => {

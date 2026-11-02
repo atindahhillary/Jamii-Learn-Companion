@@ -27,6 +27,9 @@ create table if not exists posts (
   id bigserial primary key, circle_id int not null references circles(id) on delete cascade,
   user_id uuid references users(id) on delete cascade, is_bot boolean not null default false,
   body text not null, hidden boolean not null default false, created_at timestamptz not null default now());
+create table if not exists assignments (
+  id bigserial primary key, user_id uuid not null references users(id) on delete cascade, module_id text not null,
+  body text not null, feedback text, reviewed_by uuid, updated_at timestamptz not null default now(), unique (user_id, module_id));
 create table if not exists wa_links (code_hash text primary key, user_id uuid not null references users(id) on delete cascade, expires_at timestamptz not null);
 create table if not exists wa_seen (id text primary key, at timestamptz not null default now());
 create table if not exists rate (key text primary key, count int not null, window_start timestamptz not null);

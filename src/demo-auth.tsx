@@ -1,6 +1,7 @@
 import { ShieldCheck, Sprout } from "lucide-react";
 import { useState } from "react";
 import { AUDIENCES, type Audience } from "../shared/content";
+import { AudioToggle } from "./audio";
 import { Landscape, Mascot, useApp, useL, useT } from "./core";
 import { demoSignIn } from "./demo";
 
@@ -35,6 +36,7 @@ export function DemoAuth() {
             {Object.entries(AUDIENCES).map(([k, v]) => <option key={k} value={k}>{T(v)}</option>)}
           </select>
         </label>
+        <AudioToggle />
         <div className="stack">
           <button className="btn" onClick={() => enter("learner")}><Sprout size={18} aria-hidden /> {L("Ingia kama mshiriki", "Enter as a learner")}</button>
           <button className="btn ghost" onClick={() => enter("admin")}><ShieldCheck size={18} aria-hidden /> {L("Ingia kama msimamizi", "Enter as an admin")}</button>

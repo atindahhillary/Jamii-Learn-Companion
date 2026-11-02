@@ -48,6 +48,12 @@ Open http://localhost:5199. The API prints the demo admin login. Demo learner: `
 
 Lessons are a conversation, not slides. Mzee Sironka, a fictional AI guide, walks the learner through one fictional village, Enkare (`shared/story.ts`). Each stop opens with a scene, asks a question in the learner's own words (which feeds the community analysis), checks understanding through choices, and plants a tree on the learner's own land, which slowly comes back to life. Read-aloud uses the device voice where one exists for the language.
 
+## Audio, assignments and games
+
+Fixed lines are recorded in Kenyan voices (Rafiki for Kiswahili, Chilemba for Kenyan English) by `npm run audio`, and stored in `public/audio`. They play on any phone and are cached for offline use. Live AI answers have no recording, so they use the device voice. Learners can ask a question at any point in a lesson, send an assignment after each stop and get facilitator feedback, and play three games. Each lesson has an illustration, and the bot shows the matching one in chat.
+
+The recordings come from Microsoft's Edge read-aloud voices through the unofficial `msedge-tts` package. Before a commercial launch, regenerate them with a licensed Azure Speech key or record real Kenyan speakers.
+
 ## The council
 
 Questions route by keyword to one of seven seats: Carbon Analyst, Community Lawyer, Knowledge Keeper, Rangeland Ecologist, Community Educator, Benefit Analyst, AI Safety Guide. These are AI roles, not real people, and the app says so.

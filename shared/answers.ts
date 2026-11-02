@@ -1,5 +1,5 @@
 import { GLOSSARY, INTAKE, MUST_HAVES, RED_FLAGS, type Audience, type Lang } from "./content.js";
-import { CARDS, type Card } from "./curriculum.js";
+import { CARDS, MODULES, type Card } from "./curriculum.js";
 
 export type Mode = "ask" | "analogy" | "game";
 export type Learner = { lang: Lang; audience: Audience; intake_step: number };
@@ -24,12 +24,12 @@ const NO_CARD = {
 
 export function offlineAnswer(text: string, u: Learner, mode: Mode) {
   const c = findCard(text);
-  if (!c) return { body: NO_CARD[u.lang], source: null as string | null };
+  if (!c) return { body: NO_CARD[u.lang], source: null as string | null, pic: null as string | null };
   const main = mode === "ask" ? c[levelFor(u.audience)][u.lang] : c.analogy[u.lang];
   const game = mode === "game"
     ? (u.lang === "sw" ? "\n\nMchezo: gawanyeni vikundi viwili, kimoja kitetee hoja hii na kingine kiulize maswali matatu magumu." : "\n\nGame: split into two groups. One defends this idea, the other asks three hard questions.")
     : "";
-  return { body: `${main}${game}\n\n${FOOT[u.lang]}`, source: c.source };
+  return { body: `${main}${game}\n\n${FOOT[u.lang]}`, source: c.source, pic: MODULES.find((m) => m.theme === c.theme)?.id ?? null };
 }
 
 export const intakeQuestion = (u: Learner) => {

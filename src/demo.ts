@@ -8,14 +8,20 @@ import { MIN_GROUP, buildCurriculum, classify, gapScores, type Kind } from "../s
 type Msg = { id: number; role: string; expert?: string; body: string; source?: string | null; flagged?: boolean; resolved?: boolean; at: number };
 type Insight = { body: string; theme: Theme; kind: Kind; sentiment: number; at: number };
 type Post = { id: number; circle: number; author: string; is_bot: boolean; body: string; hidden?: boolean };
+type Work = { id: number; module_id: string; body: string; feedback: string | null; name: string; mine?: boolean };
 type State = {
   role: "learner" | "admin" | null; name: string; lang: Lang; audience: Audience; consentShare: boolean; intakeStep: number;
-  messages: Msg[]; insights: Insight[]; progress: Record<string, { score: number; at: number }>; posts: Post[]; nextId: number;
+  messages: Msg[]; insights: Insight[]; progress: Record<string, { score: number; at: number }>; posts: Post[]; nextId: number; work: Work[];
 };
 
 const KEY = "jlc-demo", DAY = 86400_000;
 const fresh = (): State => ({
   role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000,
+  work: [
+    { id: 1, module_id: "m2", name: "Nasieku L.", feedback: null, body: "Nilimuuliza bibi yangu. Zamani eneo la juu lilipumzishwa wakati wa mvua. Sasa mifugo imeongezeka na eneo hilo halipumziki." },
+    { id: 2, module_id: "m6", name: "Lekishon M.", feedback: null, body: "Nilipata 1.6m na 4m. Tofauti ni kubwa, kwa hiyo tutauliza orodha ya gharama kwenye mkutano." },
+    { id: 3, module_id: "m1", name: "Amina H.", feedback: "Vizuri sana. Jaribu pia kuwaeleza vijana.", body: "Niliwaeleza watu wawili kwa kutumia mfano wa risiti ya soko. Walielewa." },
+  ],
   posts: [{ id: 1, circle: 1, author: "Nasieku L.", is_bot: false, body: FIRST_POST }, { id: 2, circle: 1, author: "Msaidizi", is_bot: true, body: BOT_POST }],
 });
 let memory: State | null = null;
@@ -99,13 +105,13 @@ function overview(s: State) {
 
 const scrub = (t: string) => t.replace(/(?:\+?254|\b0)[17]\d{8}\b/g, "[nambari ya simu]").replace(/\b(?:id|kitambulisho|pin)\D{0,15}\d{4,9}\b/gi, "[siri]");
 
-function chat(s: State, text: string, mode: Mode, expertId: string) {
+function chat(s: State, text: string, mode: Mode, expertId: string, skipIntake = false) {
   const u = { lang: s.lang, audience: s.audience, intake_step: stepOf(s) };
   const add = (m: Omit<Msg, "id" | "at">) => { const x = { ...m, id: s.nextId++, at: Date.now() }; s.messages.push(x); return x; };
   const keep = (t: string, hint?: Theme) => s.insights.push({ ...classify(t, hint), body: t, at: Date.now() });
   const clean = scrub(text);
   add({ role: "user", body: clean });
-  if (stepOf(s) < INTAKE.length) {
+  if (!skipIntake && stepOf(s) < INTAKE.length) {
     const cur = INTAKE[s.intakeStep];
     if (!/^(ruka|skip)$/i.test(clean.trim())) keep(clean, cur.theme);
     s.intakeStep += 1;
@@ -117,7 +123,7 @@ function chat(s: State, text: string, mode: Mode, expertId: string) {
   const expert = expertId ? expertById(expertId) : mode === "ask" ? routeExpert(clean) : expertById("mwalimu");
   const a = offlineAnswer(clean, u, mode);
   const m = add({ role: "bot", expert: expert.id, body: a.body, source: a.source });
-  return { id: m.id, body: a.body, expert: expert.id, source: a.source, intakeStep: stepOf(s) };
+  return { id: m.id, body: a.body, expert: expert.id, source: a.source, pic: a.pic, intakeStep: stepOf(s) };
 }
 
 export async function demoApi(path: string, method: string, b: any): Promise<any> {
@@ -151,6 +157,13 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     if (m && text) s.insights.push({ ...classify(text, m.theme), body: text, at: Date.now() });
     return done({ ok: true });
   }
+  if (path === "/learn/ask") return done(chat(s, String(b.text).slice(0, 800), "ask", "", true));
+  if (path === "/assignments" && method === "GET") return s.work.filter((w) => w.mine).map((w) => ({ ...w }));
+  if (path === "/assignments") {
+    const old = s.work.find((w) => w.mine && w.module_id === b.moduleId), body = scrub(String(b.text).slice(0, 1500));
+    if (old) Object.assign(old, { body, feedback: null }); else s.work.unshift({ id: s.nextId++, module_id: b.moduleId, name: s.name, body, feedback: null, mine: true });
+    return done({ ok: true });
+  }
   if (path === "/learn/practice") { s.progress.roleplay = { score: b.score, at: Date.now() }; return done({ ok: true }); }
   if (path === "/tools/review") return { ...reviewRules(b.text, s.lang), summary: null };
   if (path === "/tools/translate") return { text: null, glossary: glossaryFor(b.text) };
@@ -168,6 +181,9 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     if (!admin) throw fail("forbidden", 403);
     if (path === "/admin/overview") return overview(s);
     if (path === "/admin/report") return report(s);
+    if (path === "/admin/assignments") return [...s.work].sort((a, c) => Number(!!a.feedback) - Number(!!c.feedback)).map((w) => ({ ...w }));
+    const review = path.match(/^\/admin\/assignments\/(\d+)\/feedback$/);
+    if (review) { const w = s.work.find((x) => x.id === +review[1]); if (w) w.feedback = scrub(String(b.text).slice(0, 600)); return done({ ok: true }); }
     if (path === "/admin/flags") return s.messages.filter((m) => m.flagged && !m.resolved).map((m) => ({ id: m.id, body: m.body }));
     if (path === "/admin/circles") return CIRCLES.map(([name, topic], i) => ({ id: i + 1, name, topic, members: NAMES.length + 1 }));
     if (path === "/admin/learners") return cohort(Date.now()).map((c, i) => ({

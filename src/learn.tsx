@@ -2,9 +2,13 @@ import { ArrowLeft, Send } from "lucide-react";
 import { useState } from "react";
 import { ROLES, SCENES } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
-import { DEMO, Failed, Loading, api, useApp, useData, useL, useT } from "./core";
+import { Avatar, DEMO, Failed, Loading, api, useApp, useData, useL, useT } from "./core";
 import type { LearnData } from "./home";
 import { Land, Lesson, Trail } from "./journey";
+import { Assignments } from "./assignments";
+import { Listen } from "./audio";
+import { Person } from "./avatars";
+import { Games } from "./games";
 
 function RolePlay({ onDone }: { onDone: () => void }) {
   const L = useL(), T = useT();
@@ -18,11 +22,13 @@ function RolePlay({ onDone }: { onDone: () => void }) {
     <div className="page narrow">
       <button className="link back" onClick={onDone}><ArrowLeft size={16} aria-hidden /> {L("Rudi", "Back")}</button>
       <h1>{L("Igizo: Mkutano wa kijiji", "Role play: The village meeting")}</h1>
-      <p className="muted">{L("Chezeni pamoja. Wahusika", "Play together. Roles")}: {ROLES.map(T).join(", ")}.</p>
+      <p className="muted">{L("Chezeni pamoja. Wahusika:", "Play together. Roles:")}</p>
+      <div className="roles">{ROLES.map((r, k) => <span key={k}><Person look={["elder", "mama", "moran", "kijana"][k]} size={52} /><small>{T(r)}</small></span>)}</div>
       {scene ? (
         <section className="card stack">
           <small className="muted">{i + 1}/{SCENES.length}</small>
           <p className="big-title">{T(scene.text)}</p>
+          <Listen text={T(scene.text)} />
           {scene.choices.map((c, j) => (
             <button key={j} className="choice" disabled={picked != null} aria-pressed={picked === j} onClick={() => { setPicked(j); setPoints(points + c.points); }}>{T(c.text)}</button>
           ))}
@@ -40,6 +46,7 @@ export function Learn() {
   const { data, failed, reload } = useData<LearnData>("/learn");
   const [open, setOpen] = useState<string | null>(null);
   const close = () => { setOpen(null); reload(); };
+  const [tab, setTab] = useState("trail");
   if (open === "roleplay") return <RolePlay onDone={close} />;
   const m = MODULES.find((x) => x.id === open);
   if (failed) return <Failed retry={reload} />;
@@ -50,8 +57,15 @@ export function Learn() {
     <div className="page">
       <h1>{L("Safari yako", "Your journey")}</h1>
       <p className="muted lead">{L("Tembea na Mzee Sironka kijijini Enkare. Njia hii imepangwa kutokana na maswali na wasiwasi wa jamii yako.", "Walk with Mzee Sironka through Enkare village. This path follows your community's questions and worries.")}</p>
+      <div className="tabs" role="tablist">
+        {[["trail", L("Safari", "Journey")], ["work", L("Kazi zangu", "Assignments")], ["games", L("Michezo", "Games")]].map(([id, n]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{n}</button>)}
+      </div>
+      {tab === "work" && <Assignments />}
+      {tab === "games" && <Games />}
+      {tab === "trail" && <>
       <section className="card land-card"><Land done={done} /><p className="land-note"><b>{L("Ardhi yako", "Your land")}</b> · {L(`miti ${done} kati ya ${MODULES.length}`, `${done} of ${MODULES.length} trees`)}</p></section>
       <Trail plan={data.plan} done={data.progress} onOpen={setOpen} onPlay={() => setOpen("roleplay")} />
+      </>}
     </div>
   );
 }
@@ -130,7 +144,7 @@ export function Circles() {
           <ul className="plain feed">
             {Array.isArray(posts.data) && posts.data.map((p) => (
               <li key={p.id} data-bot={p.is_bot}>
-                <b>{p.is_bot ? L("Msaidizi (AI)", "Assistant (AI)") : p.author}</b><p>{p.body}</p>
+                <span className="row"><Avatar name={p.is_bot ? "Mzee Sironka" : p.author} size={32} /><b>{p.is_bot ? L("Mzee Sironka (AI)", "Mzee Sironka (AI)") : p.author}</b></span><p>{p.body}</p>
                 {isAdmin && <button className="link" onClick={async () => { await api(`/admin/posts/${p.id}/hide`, { method: "POST" }); posts.reload(); }}>{L("Ficha", "Hide")}</button>}
               </li>
             ))}

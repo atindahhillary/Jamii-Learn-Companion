@@ -1,5 +1,6 @@
 import { Flag, MessageSquareText, Printer, Search, Sprout, Users } from "lucide-react";
 import { useState } from "react";
+import { AdminWork } from "./assignments";
 import { AUDIENCES, THEMES, type Audience, type Theme } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
 import { AreaChart, Bars, Donut } from "./charts";
@@ -11,7 +12,7 @@ const STAGE_COLORS: Record<string, string> = { listening: "#eda100", started: "#
 export function Admin() {
   const L = useL(), T = useT();
   const [tab, setTab] = useState("overview");
-  const tabs = [["overview", L("Muhtasari", "Overview")], ["learners", L("Washiriki", "Learners")], ["report", L("Ripoti", "Report")], ["flags", L("Ubora wa AI", "AI quality")]];
+  const tabs = [["overview", L("Muhtasari", "Overview")], ["learners", L("Washiriki", "Learners")], ["work", L("Kazi", "Assignments")], ["report", L("Ripoti", "Report")], ["flags", L("Ubora wa AI", "AI quality")]];
   const o = useData<any>("/admin/overview");
   const report = useData<any>("/admin/report");
   const people = useData<any[]>("/admin/learners");
@@ -68,6 +69,7 @@ export function Admin() {
             </tr>))}</tbody>
         </table></div>}
       </section>}
+      {tab === "work" && <AdminWork />}
       {tab === "report" && <Report r={r} />}
       {tab === "flags" && <section className="card">
         <h2>{L("Majibu yaliyoripotiwa", "Reported answers")}</h2>

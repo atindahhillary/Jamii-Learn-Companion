@@ -19,6 +19,42 @@ async function register(extra: object = {}) {
   return { cookie: r.headers.get("set-cookie")!.split(";")[0], phone };
 }
 
+describe("audio and assignments", () => {
+  it("keys and splits text for recordings", async () => {
+    const { audioKey, segments } = await import("../shared/audio-key.js");
+    expect(audioKey("Karibu")).toBe(audioKey(" Karibu "));
+    expect(audioKey("Karibu")).not.toBe(audioKey("Karibuni"));
+    expect(segments("Ndiyo kabisa! Sawa.\n\nHakiki.")).toEqual(["Ndiyo kabisa!", "Sawa.", "Hakiki."]);
+  });
+  it("gives every lesson an illustration link from its card", async () => {
+    const { offlineAnswer } = await import("../shared/answers.js");
+    expect(offlineAnswer("mgao wa pesa", { lang: "sw", audience: "herder", intake_step: 5 }, "ask").pic).toBe("m6");
+  });
+  it("lets learners submit work, keeps it private, and lets admins reply", async () => {
+    const a = await register(), b = await register();
+    const hash = await hashSecret("another-admin-secret");
+    await q("insert into users (name, phone_hash, phone_enc, secret_hash, role) values ('Admin2',$1,$2,$3,'admin')", [phoneHash("+254700000098"), encrypt("+254700000098"), hash]);
+    const adm = (await post("/auth/login", { phone: "0700000098", secret: "another-admin-secret" })).headers.get("set-cookie")!.split(";")[0];
+    expect((await post("/assignments", { moduleId: "nope", text: "x" }, a.cookie)).status).toBe(400);
+    await post("/assignments", { moduleId: "m1", text: "Nilifanya, simu 0799111222" }, a.cookie);
+    const mine = await (await get("/assignments", a.cookie)).json();
+    expect(mine[0].body).not.toContain("0799111222");
+    expect(await (await get("/assignments", b.cookie)).json()).toHaveLength(0);
+    expect((await get("/admin/assignments", b.cookie)).status).toBe(403);
+    const r = await post(`/admin/assignments/${mine[0].id}/feedback`, { text: "Vizuri" }, adm);
+    expect(r.status).toBe(200);
+    expect((await (await get("/assignments", a.cookie)).json())[0].feedback).toBe("Vizuri");
+    await post(`/admin/assignments/${mine[0].id}/feedback`, { text: "x" }, b.cookie);
+    expect((await (await get("/assignments", a.cookie)).json())[0].feedback).toBe("Vizuri");
+  });
+  it("answers questions during a lesson without touching intake", async () => {
+    const { cookie } = await register();
+    const r = await (await post("/learn/ask", { text: "ridhaa ni nini?" }, cookie)).json();
+    expect(r.body).toContain("FPIC");
+    expect(r.intakeStep).toBe(0);
+  });
+});
+
 describe("public demo", () => {
   it("runs in the browser without a server", async () => {
     const { demoApi, demoSignIn } = await import("../src/demo.js");

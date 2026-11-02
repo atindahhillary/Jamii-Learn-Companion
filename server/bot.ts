@@ -53,11 +53,11 @@ export async function saveInsight(u: BotUser, text: string, hint?: Theme) {
 const say = (u: BotUser, channel: string, role: string, body: string, expert: string | null = null, source: string | null = null) =>
   q<{ id: string }>("insert into messages (user_id, channel, role, expert, body, source) values ($1,$2,$3,$4,$5,$6) returning id", [u.id, channel, role, expert, body, source]);
 
-export async function respond(u: BotUser, raw: string, channel: "web" | "whatsapp", mode: Mode = "ask", expertId?: string) {
+export async function respond(u: BotUser, raw: string, channel: "web" | "whatsapp", mode: Mode = "ask", expertId?: string, skipIntake = false) {
   const text = redact(raw);
   await say(u, channel, "user", text);
 
-  if (u.intake_step < INTAKE.length) {
+  if (!skipIntake && u.intake_step < INTAKE.length) {
     const cur = INTAKE[u.intake_step];
     const skip = /^(ruka|skip)$/i.test(text.trim());
     if (!skip) await saveInsight(u, text, cur.theme);
@@ -83,7 +83,7 @@ export async function respond(u: BotUser, raw: string, channel: "web" | "whatsap
     if (ai) body = ai;
   }
   const [m] = await say(u, channel, "bot", body, expert.id, off.source);
-  return { id: m.id, body, expert: expert.id, source: off.source, intakeStep: u.intake_step };
+  return { id: m.id, body, expert: expert.id, source: off.source, pic: off.pic, intakeStep: u.intake_step };
 }
 
 export async function reviewDocument(u: BotUser, raw: string) {

@@ -1,9 +1,12 @@
-import { ArrowLeft, Check, Footprints, Send, Volume2 } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, Footprints, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Module } from "../shared/curriculum";
 import { MODULES } from "../shared/curriculum";
 import { FINALE, GUIDE, STORY } from "../shared/story";
+import { WorkBox } from "./assignments";
+import { Listen, audioOn, play, stop } from "./audio";
 import { Mascot, api, useApp, useL, useT } from "./core";
+import { Picture } from "./illustrations";
 
 const SPOTS: [number, number, number][] = [[120, 214, 1], [650, 206, 1.1], [235, 232, 1.25], [525, 226, 1], [60, 240, 1.3], [385, 216, .9], [730, 240, 1.35], [300, 196, .8]];
 
@@ -36,40 +39,24 @@ export function Land({ done, fresh = false }: { done: number; fresh?: boolean })
   );
 }
 
-function useVoice(lang: string) {
-  const [ok, setOk] = useState(false);
-  useEffect(() => {
-    if (!("speechSynthesis" in window)) return;
-    const check = () => setOk(speechSynthesis.getVoices().some((v) => v.lang.toLowerCase().startsWith(lang)));
-    check();
-    speechSynthesis.addEventListener("voiceschanged", check);
-    return () => speechSynthesis.removeEventListener("voiceschanged", check);
-  }, [lang]);
-  return ok ? (text: string) => {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang)) ?? null;
-    u.lang = lang;
-    speechSynthesis.speak(u);
-  } : null;
-}
-
-type Line = { who: "guide" | "me"; text: string };
-type Beat = { kind: "say"; text: string } | { kind: "ask"; text: string } | { kind: "quiz"; i: number } | { kind: "end" };
+type Line = { who: "guide" | "me"; text: string; pic?: string | null };
+type Beat = { kind: "say"; text: string; pic?: string } | { kind: "ask"; text: string } | { kind: "quiz"; i: number } | { kind: "end" };
 
 export function Lesson({ m, doneBefore, onDone }: { m: Module; doneBefore: number; onDone: () => void }) {
   const { lang } = useApp();
   const L = useL(), T = useT();
-  const stop = STORY[m.id];
+  const place = STORY[m.id];
   const beats = useMemo<Beat[]>(() => [
-    { kind: "say", text: T(stop.open) }, ...m.points.map((p) => ({ kind: "say" as const, text: T(p) })),
-    { kind: "ask", text: T(stop.ask) }, ...m.quiz.map((_, i) => ({ kind: "quiz" as const, i })), { kind: "end" },
+    { kind: "say", text: T(place.open) }, ...m.points.map((p, i) => ({ kind: "say" as const, text: T(p), pic: i === 0 ? m.id : undefined })),
+    { kind: "ask", text: T(place.ask) }, ...m.quiz.map((_, i) => ({ kind: "quiz" as const, i })), { kind: "end" },
   ], [m, lang]);
   const [log, setLog] = useState<Line[]>([]), [at, setAt] = useState(-1), [typing, setTyping] = useState(true);
   const [answers, setAnswers] = useState<number[]>([]), [picked, setPicked] = useState<number | null>(null);
   const [text, setText] = useState(""), [score, setScore] = useState<number | null>(null), [err, setErr] = useState(false);
   const end = useRef<HTMLDivElement>(null);
-  const speak = useVoice(lang);
+  const [asking, setAsking] = useState(false), [question, setQuestion] = useState(""), [thinking, setThinking] = useState(false);
+  const say = (t: string) => { if (audioOn()) play(t, lang); };
+  useEffect(() => stop, []);
   const beat = beats[at];
 
   const next = () => setAt((a) => a + 1);
@@ -81,10 +68,11 @@ export function Lesson({ m, doneBefore, onDone }: { m: Module; doneBefore: numbe
     const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = setTimeout(() => {
       setTyping(false);
-      if (b.kind === "say" || b.kind === "ask") setLog((l) => [...l, { who: "guide", text: b.text }]);
-      if (b.kind === "quiz") setLog((l) => [...l, { who: "guide", text: T(m.quiz[b.i].q) }]);
+      if (b.kind === "say" || b.kind === "ask") { setLog((l) => [...l, { who: "guide", text: b.text, pic: b.kind === "say" ? b.pic : undefined }]); say(b.text); }
+      if (b.kind === "quiz") { setLog((l) => [...l, { who: "guide", text: T(m.quiz[b.i].q) }]); say(T(m.quiz[b.i].q)); }
       if (b.kind === "end") {
-        setLog((l) => [...l, { who: "guide", text: T(stop.close) }]);
+        setLog((l) => [...l, { who: "guide", text: T(place.close) }]);
+        say(T(place.close));
         api<{ score: number }>("/learn/quiz", { body: { moduleId: m.id, answers } }).then((r) => setScore(r.score)).catch(() => setErr(true));
       }
     }, calm ? 0 : 650);
@@ -103,14 +91,29 @@ export function Lesson({ m, doneBefore, onDone }: { m: Module; doneBefore: numbe
     const q = m.quiz[i], right = j === q.answer;
     setPicked(j);
     setAnswers((a) => { const c = [...a]; c[i] = j; return c; });
-    setLog((l) => [...l, { who: "me", text: T(q.options[j]) }, { who: "guide", text: `${right ? L("Ndiyo kabisa! ", "Exactly! ") : L("Si hivyo, rafiki. ", "Not quite, friend. ")}${T(q.why)}` }]);
+    const reply = `${right ? L("Ndiyo kabisa! ", "Exactly! ") : L("Si hivyo, rafiki. ", "Not quite, friend. ")}${T(q.why)}`;
+    setLog((l) => [...l, { who: "me", text: T(q.options[j]) }, { who: "guide", text: reply }]);
+    say(reply);
+  };
+  const ask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = question.trim();
+    if (!q || thinking) return;
+    setQuestion(""); setAsking(false); setThinking(true);
+    setLog((l) => [...l, { who: "me", text: q }]);
+    try {
+      const r = await api("/learn/ask", { body: { text: q } });
+      setLog((l) => [...l, { who: "guide", text: r.body, pic: r.pic }]);
+      say(r.body);
+    } catch { setLog((l) => [...l, { who: "guide", text: L("Samahani, sikupata swali lako. Jaribu tena.", "Sorry, I did not get your question. Try again.") }]); }
+    setThinking(false);
   };
   const finished = beat?.kind === "end" && score != null;
   const grown = doneBefore + (score != null ? 1 : 0);
   return (
     <div className="page narrow walk">
       <button className="link back" onClick={onDone}><ArrowLeft size={16} aria-hidden /> {L("Rudi safarini", "Back to the journey")}</button>
-      <div className="walk-head"><Land done={Math.min(grown, MODULES.length)} fresh={finished} /><span className="walk-place"><Footprints size={15} aria-hidden /> {T(stop.place)}</span></div>
+      <div className="walk-head"><Land done={Math.min(grown, MODULES.length)} fresh={finished} /><span className="walk-place"><Footprints size={15} aria-hidden /> {T(place.place)}</span></div>
       <section className="card walk-talk" aria-live="polite">
         {log.map((l, i) => (
           <div key={i} className={`line-row ${l.who}`}>
@@ -118,14 +121,22 @@ export function Lesson({ m, doneBefore, onDone }: { m: Module; doneBefore: numbe
             <div className={`bubble ${l.who === "me" ? "mine" : ""}`}>
               {l.who === "guide" && <small className="who">{GUIDE} (AI)</small>}
               <p>{l.text}</p>
-              {l.who === "guide" && speak && <button className="flag" onClick={() => speak(l.text)}><Volume2 size={13} aria-hidden /> {L("Sikiliza", "Listen")}</button>}
+              {l.pic && <Picture id={l.pic} />}
+              {l.who === "guide" && <Listen text={l.text} />}
             </div>
           </div>
         ))}
-        {typing && <div className="line-row guide" role="status"><Mascot size={36} /><div className="bubble dots" aria-label={L("Anaandika", "Typing")}><i /><i /><i /></div></div>}
+        {(typing || thinking) && <div className="line-row guide" role="status"><Mascot size={36} /><div className="bubble dots" aria-label={L("Anaandika", "Typing")}><i /><i /><i /></div></div>}
       </section>
       {!typing && beat && (
         <div className="walk-controls">
+          {asking
+            ? <form className="ask-box" onSubmit={ask}>
+                <label className="sr" htmlFor="ask">{L("Swali lako", "Your question")}</label>
+                <input id="ask" value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={800} autoFocus placeholder={L("Uliza chochote kuhusu somo hili...", "Ask anything about this lesson...")} />
+                <button className="send" aria-label={L("Tuma swali", "Send question")}><Send size={18} aria-hidden /></button>
+              </form>
+            : <button className="link" onClick={() => setAsking(true)}><CircleHelp size={16} aria-hidden /> {L("Muulize Mzee swali", "Ask the elder a question")}</button>}
           {beat.kind === "say" && <button className="btn" onClick={next}>{L("Endelea kutembea", "Keep walking")}</button>}
           {beat.kind === "ask" && <form className="stack" onSubmit={(e) => { e.preventDefault(); reflect(false); }}>
             <label className="sr" htmlFor="reflect">{beat.text}</label>
@@ -139,7 +150,8 @@ export function Lesson({ m, doneBefore, onDone }: { m: Module; doneBefore: numbe
             <Land done={Math.min(grown, MODULES.length)} fresh />
             <p className="big-title">{L("Umepanda mti mpya kwenye ardhi yako!", "You planted a new tree on your land!")}</p>
             <p className="muted small">{L("Alama", "Score")}: {score}%</p>
-            <div className="safety"><b>{L("Changamoto ya leo", "Today's challenge")}: </b>{T(m.activity)}</div>
+            <div className="safety"><b>{L("Kazi yako", "Your assignment")}: </b>{T(m.activity)}</div>
+            <WorkBox moduleId={m.id} />
             {grown >= MODULES.length && <p className="note">{T(FINALE)}</p>}
             <button className="btn" onClick={onDone}>{L("Rudi safarini", "Back to the journey")}</button>
           </div>}

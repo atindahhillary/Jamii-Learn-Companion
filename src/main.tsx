@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Lang } from "../shared/content";
 import { Admin } from "./admin";
+import { AudioToggle } from "./audio";
 import { Auth } from "./auth";
 import { Chat } from "./chat";
 import { Ctx, Avatar, DEMO, Loading, Mascot, api, installApp, useApp, useL, type Me } from "./core";
@@ -39,6 +40,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <header className="top">
           {isAdmin && <span className="pill"><ShieldCheck size={15} aria-hidden /> {L("Msimamizi", "Admin mode")}</span>}
           <span className="grow" />
+          <AudioToggle />
           <div className="lang" role="group" aria-label={L("Lugha", "Language")}>
             {(["sw", "en"] as Lang[]).map((l) => <button key={l} aria-pressed={lang === l} onClick={() => setLang(l)}>{l === "sw" ? "Kiswahili" : "English"}</button>)}
           </div>

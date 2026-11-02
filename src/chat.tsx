@@ -1,15 +1,15 @@
-import { Bot, Coins, Flag, GraduationCap, Leaf, Lightbulb, MessageCircleMore, Puzzle, Scale, Send, ShieldCheck, Sparkles, Sprout, Users, X, type LucideIcon } from "lucide-react";
+import { Flag, Lightbulb, MessageCircleMore, Puzzle, Send, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { COUNCIL, expertById } from "../shared/content";
+import { WELCOME } from "../shared/story";
+import { Listen, audioOn, play, stop } from "./audio";
+import { Person, SEAT_LOOK } from "./avatars";
+import { Picture } from "./illustrations";
 import { DEMO, Failed, Loading, api, useApp, useData, useL, useT } from "./core";
 
-const ICONS: Record<string, LucideIcon> = { kaboni: Leaf, wakili: Scale, mzee: Users, malisho: Sprout, mwalimu: GraduationCap, mchambuzi: Coins, mlinzi: ShieldCheck };
-const Seat = ({ id, color, size = 40 }: { id: string; color: string; size?: number }) => {
-  const Icon = ICONS[id] ?? Bot;
-  return <span className="avatar" style={{ background: color, width: size, height: size }} aria-hidden><Icon size={size * 0.5} /></span>;
-};
+const Seat = ({ id, size = 40 }: { id: string; color?: string; size?: number }) => <Person look={SEAT_LOOK[id] ?? "elder"} size={size} />;
 
-type Msg = { id: string; role: string; expert?: string | null; body: string; source?: string | null; flagged?: boolean };
+type Msg = { id: string; role: string; expert?: string | null; body: string; source?: string | null; flagged?: boolean; pic?: string | null };
 
 function WhatsAppDialog({ onClose }: { onClose: () => void }) {
   const { me } = useApp();
@@ -38,15 +38,16 @@ function WhatsAppDialog({ onClose }: { onClose: () => void }) {
 }
 
 export function Chat() {
-  const { me, refresh } = useApp();
+  const { me, refresh, lang } = useApp();
   const L = useL(), T = useT();
+  useEffect(() => stop, []);
   const { data, failed, reload } = useData<{ messages: Msg[]; intakeQuestion: string | null }>("/chat");
   const [msgs, setMsgs] = useState<Msg[]>([]), [text, setText] = useState(""), [busy, setBusy] = useState(false);
   const [expert, setExpert] = useState(""), [wa, setWa] = useState(false), [error, setError] = useState("");
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!data) return;
-    const hello = data.intakeQuestion ? [{ id: "q", role: "bot", expert: "mwalimu", body: `${L("Karibu, rafiki. Mimi ni Mzee Sironka, kiongozi wako wa safari. Mimi ni AI, si mzee halisi. Kabla ya kutembea, nataka kukusikiliza.", "Welcome, friend. I am Mzee Sironka, your journey guide. I am an AI, not a real elder. Before we walk, I want to listen to you.")}\n\n${data.intakeQuestion}` }] : [];
+    const hello = data.intakeQuestion ? [{ id: "q", role: "bot", expert: "mwalimu", body: `${T(WELCOME)}\n\n${data.intakeQuestion}` }] : [];
     const open = !data.messages.length && !hello.length ? [{ id: "q", role: "bot", expert: "mwalimu", body: L("Karibu. Uliza swali lolote kuhusu kaboni, ardhi, mikataba au mgao wa mapato.", "Welcome. Ask anything about carbon, land, contracts or benefit sharing.") }] : [];
     setMsgs([...data.messages, ...hello, ...open]);
   }, [data]);
@@ -58,7 +59,8 @@ export function Chat() {
     setMsgs((m) => [...m, { id: `u${Date.now()}`, role: "user", body }]);
     try {
       const r = await api("/chat", { body: { text: body, mode, expert } });
-      setMsgs((m) => [...m, { id: r.id, role: "bot", expert: r.expert, body: r.body, source: r.source }]);
+      setMsgs((m) => [...m, { id: r.id, role: "bot", expert: r.expert, body: r.body, source: r.source, pic: r.pic }]);
+      if (audioOn()) play(r.body, lang);
       if (me && r.intakeStep !== me.intakeStep && r.intakeStep >= me.intakeTotal) refresh();
     } catch (x: any) {
       setError(x.message === "rate" ? L("Maswali mengi kwa saa hii. Pumzika kidogo.", "Too many messages this hour. Take a short break.") : L("Ujumbe haukutumwa. Angalia mtandao.", "Message not sent. Check your connection."));
@@ -93,7 +95,9 @@ export function Chat() {
             <div key={m.id} className={`bubble ${m.role === "user" ? "mine" : ""}`}>
               {m.role !== "user" && m.expert && <small className="who">{T(expertById(m.expert).name)}</small>}
               <p>{m.body}</p>
+              {m.pic && <Picture id={m.pic} />}
               {m.source && <small className="src">{L("Chanzo", "Source")}: {m.source}</small>}
+              {m.role === "bot" && <Listen text={m.body} />}
               {m.role === "bot" && m.id !== "q" && (
                 <button className="flag" disabled={m.flagged} onClick={() => flag(m.id)}><Flag size={13} aria-hidden /> {m.flagged ? L("Imeripotiwa, asante", "Reported, thank you") : L("Si sahihi", "Not right")}</button>
               )}

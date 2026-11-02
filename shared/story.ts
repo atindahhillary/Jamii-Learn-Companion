@@ -56,6 +56,11 @@ export const STORY: Record<string, Stop> = {
   },
 };
 
+export const WELCOME = o(
+  "Karibu, rafiki. Mimi ni Mzee Sironka, kiongozi wako wa safari. Mimi ni AI, si mzee halisi. Kabla ya kutembea, nataka kukusikiliza.",
+  "Welcome, friend. I am Mzee Sironka, your journey guide. I am an AI, not a real elder. Before we walk, I want to listen to you.",
+);
+
 export const FINALE = o(
   "Tumetembea pamoja, na ardhi yako imechanua. Sasa rudi kijijini ukawafundishe wengine. Hiyo ndiyo safari halisi.",
   "We have walked together and your land has bloomed. Now go back to the village and teach others. That is the real journey.",
