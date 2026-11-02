@@ -1,0 +1,140 @@
+import { o, type T, type Theme } from "./content.js";
+
+export type Q = { q: T; options: T[]; answer: number; why: T };
+export type Module = { id: string; theme: Theme; title: T; minutes: number; points: T[]; activity: T; quiz: Q[] };
+
+export const MODULES: Module[] = [
+  { id: "m1", theme: "carbon_basics", title: o("Mkopo wa kaboni ni nini?", "What is a carbon credit?"), minutes: 5,
+    points: [
+      o("Mkopo mmoja wa kaboni unawakilisha tani moja ya gesi ya ukaa iliyopunguzwa au kuondolewa hewani.", "One carbon credit represents one tonne of CO2 equivalent reduced or removed from the air."),
+      o("Kampuni hununua mikopo ili kufidia uchafuzi wake. Mkopo ukitumiwa 'hustaafishwa' ili usihesabiwe tena.", "Companies buy credits to offset their pollution. A used credit is 'retired' so it counts only once."),
+      o("Mkopo ni ahadi: ardhi inatunzwa kwa miaka mingi. Pesa za leo zinakuja na wajibu wa kesho.", "A credit is a promise: land is cared for over many years. Today's money comes with tomorrow's duties."),
+    ],
+    activity: o("Waeleze watu wawili nyumbani mkopo wa kaboni ni nini bila kutumia neno 'kaboni'.", "Explain a carbon credit to two people at home without using the word 'carbon'."),
+    quiz: [
+      { q: o("Mkopo mmoja wa kaboni ni sawa na nini?", "One carbon credit equals what?"), options: [o("Tani moja ya gesi ya ukaa", "One tonne of CO2 equivalent"), o("Ekari moja ya ardhi", "One acre of land"), o("Shilingi elfu moja", "One thousand shillings")], answer: 0, why: o("Mkopo hupima gesi, si ardhi wala pesa.", "A credit measures gas, not land or money.") },
+      { q: o("Kwa nini mkopo 'hustaafishwa'?", "Why is a credit 'retired'?"), options: [o("Ili uuzwe tena", "So it can be resold"), o("Ili usitumike mara mbili", "So it cannot be used twice"), o("Kwa sababu ni wa zamani", "Because it is old")], answer: 1, why: o("Kustaafisha kunazuia kuhesabu mara mbili.", "Retirement prevents double counting.") },
+    ] },
+  { id: "m2", theme: "ecology", title: o("Ardhi yetu, maarifa yetu", "Our land, our knowledge"), minutes: 5,
+    points: [
+      o("Nyasi, miti na udongo huhifadhi kaboni. Ukame na malisho kupita kiasi hupunguza hifadhi hiyo.", "Grass, trees and soil store carbon. Drought and overgrazing reduce that store."),
+      o("Mipango ya jadi ya malisho inaweza kuwa sababu ardhi iko hai leo. Huo ni mchango wenye thamani.", "Traditional grazing plans may be why the land is alive today. That is a valuable contribution."),
+      o("Maarifa ya jadi ni mali ya jamii. Uliza kabla ya kurekodiwa: yatatumikaje, na nani atayamiliki?", "Traditional knowledge belongs to the community. Ask before it is recorded: how will it be used and who will own it?"),
+    ],
+    activity: o("Mwulize mzee mmoja jinsi malisho yalivyopangwa zamani, kisha mwambie mwenzako kilichobadilika.", "Ask one elder how grazing was planned in the past, then tell a peer what changed."),
+    quiz: [
+      { q: o("Mradi ukitaka kurekodi maarifa ya jadi, ufanye nini kwanza?", "If a project wants to record traditional knowledge, what comes first?"), options: [o("Kuyachapisha mtandaoni", "Publish it online"), o("Kumlipa mzee mmoja tu", "Pay just one elder"), o("Kuomba ruhusa ya jamii na kukubaliana matumizi", "Ask the community's permission and agree the use")], answer: 2, why: o("Maarifa ni ya jamii nzima, hivyo jamii huamua.", "The knowledge belongs to the whole community, so the community decides.") },
+      { q: o("Ukame unaathiri vipi hifadhi ya kaboni?", "How does drought affect stored carbon?"), options: [o("Unaweza kuipunguza", "It can reduce it"), o("Hauna athari", "It has no effect"), o("Unaiongeza daima", "It always increases it")], answer: 0, why: o("Ndiyo maana mkataba lazima useme nani anabeba hatari ya ukame.", "That is why a contract must say who carries drought risk.") },
+    ] },
+  { id: "m3", theme: "measurement", title: o("Kaboni hupimwaje?", "How is carbon measured?"), minutes: 6,
+    points: [
+      o("Msingi (baseline) ni makisio ya kile ambacho kingetokea bila mradi. Msingi uliokuzwa huzaa mikopo isiyo ya kweli.", "A baseline estimates what would happen without the project. An inflated baseline creates credits that are not real."),
+      o("Ziada (additionality) inauliza: je, mabadiliko haya yangetokea hata bila pesa za kaboni?", "Additionality asks: would this change have happened anyway without carbon money?"),
+      o("Mkaguzi huru hukagua kazi (MRV). Jamii inaweza kuomba matokeo na kushiriki katika ukusanyaji wa data.", "An independent auditor checks the work (MRV). The community can ask for results and take part in collecting data."),
+    ],
+    activity: o("Andika swali moja ungemuuliza mkaguzi anayekuja kupima ardhi yenu.", "Write one question you would ask an auditor who comes to measure your land."),
+    quiz: [
+      { q: o("Baseline ni nini?", "What is a baseline?"), options: [o("Bei ya mkopo", "The price of a credit"), o("Makisio ya hali bila mradi", "An estimate of what happens without the project"), o("Jina la mnunuzi", "The buyer's name")], answer: 1, why: o("Mikopo huhesabiwa kutokana na tofauti na msingi huu.", "Credits are counted from the difference against this baseline.") },
+      { q: o("'Additionality' inauliza nini?", "What does 'additionality' ask?"), options: [o("Je, mabadiliko yangetokea bila pesa za kaboni?", "Would the change have happened anyway?"), o("Je, ardhi ni kubwa?", "Is the land big?"), o("Je, kuna mvua?", "Is there rain?")], answer: 0, why: o("Kama yangetokea hata hivyo, mkopo hauna maana.", "If it would have happened anyway, the credit means nothing.") },
+    ] },
+  { id: "m4", theme: "land_rights", title: o("Ardhi na haki za jamii", "Land and community rights"), minutes: 6,
+    points: [
+      o("Katiba inatambua ardhi ya jamii (Ibara ya 63) na Sheria ya Ardhi ya Jamii ya 2016 inaweka usajili na kamati ya usimamizi.", "The Constitution recognises community land (Article 63) and the Community Land Act 2016 sets out registration and a management committee."),
+      o("Mkopo wa kaboni hauhamishi umiliki wa ardhi, lakini mkataba unaweza kuzuia matumizi yake. Soma masharti ya malisho kwa makini.", "A carbon credit does not itself transfer land, but a contract can restrict how land is used. Read grazing terms carefully."),
+      o("Mahakama za Kenya zimewahi kukagua iwapo jamii zilishirikishwa vya kutosha. Ushirikishwaji si utaratibu tu, ni haki.", "Kenyan courts have examined whether communities were adequately involved. Participation is a right, not a formality."),
+    ],
+    activity: o("Tafuta kama ardhi yenu imesajiliwa na nani yuko kwenye kamati ya usimamizi.", "Find out whether your land is registered and who sits on the management committee."),
+    quiz: [
+      { q: o("Mkataba wa kaboni unaweza kufanya nini hata bila kuhamisha umiliki?", "What can a carbon contract do even without transferring ownership?"), options: [o("Kufuta Katiba", "Cancel the Constitution"), o("Kuleta mvua", "Bring rain"), o("Kuzuia jinsi ardhi inavyotumika", "Restrict how land is used")], answer: 2, why: o("Ndiyo sababu masharti ya malisho ni muhimu.", "That is why grazing terms matter.") },
+      { q: o("Sheria gani inahusu ardhi ya jamii?", "Which law covers community land?"), options: [o("Sheria ya Ardhi ya Jamii, 2016", "Community Land Act 2016"), o("Sheria ya Trafiki", "The Traffic Act"), o("Hakuna sheria", "There is no law")], answer: 0, why: o("Inaeleza usajili na usimamizi wa ardhi ya jamii.", "It sets out registration and management of community land.") },
+    ] },
+  { id: "m5", theme: "fpic", title: o("Ridhaa huru: haki ya kusema ndiyo au hapana", "Free consent: the right to say yes or no"), minutes: 6,
+    points: [
+      o("FPIC ni ridhaa ya hiari, ya awali, yenye taarifa kamili. Hakuna kulazimishwa, na taarifa inakuja kabla ya uamuzi.", "FPIC is consent that is free, prior and informed. No pressure, and information comes before the decision."),
+      o("Kanuni za 2024 zinataka nyaraka za FPIC kwa miradi ya ardhi ya jamii, na ripoti ya mashauriano iambatishwe na CDA.", "The 2024 Regulations require FPIC documents for community land projects, and the consultation report is annexed to the CDA."),
+      o("Mkutano si ridhaa. Wanawake, vijana, walio pembezoni na wasiojua kusoma lazima wafikiwe kwa lugha yao.", "A meeting is not consent. Women, youth, marginalised people and those who cannot read must be reached in their language."),
+    ],
+    activity: o("Andika orodha ya nani anaweza kuachwa nje ya mkutano wa kijiji, na jinsi ya kuwafikia.", "List who could be left out of a village meeting, and how to reach them."),
+    quiz: [
+      { q: o("'Prior' katika FPIC inamaanisha nini?", "What does 'prior' mean in FPIC?"), options: [o("Baada ya kusaini", "After signing"), o("Taarifa na ridhaa kabla ya mradi", "Information and consent before the project"), o("Viongozi tu ndio waamue", "Only leaders decide")], answer: 1, why: o("Ridhaa baada ya kuanza si ridhaa.", "Consent after the start is not consent.") },
+      { q: o("Mwekezaji anasema 'saini leo au fursa itapotea'. Je, hii ni FPIC?", "A developer says 'sign today or lose the chance'. Is this FPIC?"), options: [o("Hapana, ni shinikizo", "No, that is pressure"), o("Ndiyo", "Yes"), o("Ndiyo, kama kuna chai", "Yes, if tea is served")], answer: 0, why: o("Ridhaa lazima iwe huru, bila haraka ya kulazimishwa.", "Consent must be free, without forced urgency.") },
+    ] },
+  { id: "m6", theme: "benefits", title: o("Mgao wa mapato: asilimia ya nini?", "Benefit sharing: a percentage of what?"), minutes: 6,
+    points: [
+      o("Kanuni ya 29: kwenye ardhi ya umma au jamii, miradi ya ardhi hutoa angalau 40%, isiyo ya ardhi angalau 25%.", "Regulation 29: on public or community land, land-based projects give at least 40%, non-land-based at least 25%."),
+      o("Asilimia hiyo ni ya 'mapato ya jumla ya mwaka uliopita ukiondoa gharama za kufanya biashara'. Uliza: gharama zipi zinaondolewa, na nani anazikagua?", "That is a share of 'aggregate earnings of the previous year less cost of doing business'. Ask: which costs come off, and who checks them?"),
+      o("Mfano wa CDA unamtaka mwekezaji atoe ripoti ya mwaka ya mapato na ya pesa zilizolipwa. Omba ripoti hizi.", "The CDA template requires the proponent to give yearly reports of earnings and of money paid. Ask for these reports."),
+    ],
+    activity: o("Mradi ulipata milioni 10, gharama milioni 6. Hesabu 40% ya kilichobaki, kisha linganisha na 40% ya milioni 10.", "A project earned 10 million with 6 million costs. Work out 40% of what remains, then compare with 40% of 10 million."),
+    quiz: [
+      { q: o("Kwa mradi wa ardhi kwenye ardhi ya jamii, kiwango cha chini ni kipi?", "For a land-based project on community land, what is the minimum?"), options: [o("5%", "5%"), o("40% baada ya gharama za biashara", "40% after cost of doing business"), o("100% ya mapato", "100% of earnings")], answer: 1, why: o("Kanuni 29(1)(a). Maneno 'baada ya gharama' ni muhimu sana.", "Regulation 29(1)(a). The words 'less cost of doing business' matter a lot.") },
+      { q: o("Mapato 10m, gharama 6m. 40% ni kiasi gani?", "Earnings 10m, costs 6m. What is the 40%?"), options: [o("1.6m", "1.6m"), o("4m", "4m"), o("6m", "6m")], answer: 0, why: o("10m - 6m = 4m, na 40% ya 4m ni 1.6m. Gharama kubwa hupunguza mgao.", "10m - 6m = 4m, and 40% of 4m is 1.6m. High costs shrink the share.") },
+    ] },
+  { id: "m7", theme: "contracts", title: o("Kusoma mkataba bila hofu", "Reading a contract without fear"), minutes: 7,
+    points: [
+      o("CDA hudumu kwa maisha yote ya uzalishaji ya mradi. Uamuzi wa leo unawafunga watoto wenu, hivyo uliza jinsi ya kuurekebisha.", "A CDA lasts the productive life of the project. Today's decision binds your children, so ask how it can be amended."),
+      o("Kamati ya CDA ina wawakilishi waliochaguliwa wa wanawake, vijana, wazee, walio pembezoni na watu wenye ulemavu. Mwenyekiti au katibu hawezi kuwa mwenye wadhifa wa kisiasa.", "The CDA committee has elected representatives of women, youth, elders, marginalised people and persons with disability. The chair or secretary cannot hold political office."),
+      o("Kila jamii katika kaunti hupata mkataba wake (kanuni ya 28). Usikubali mkataba wa jumla wa jamii nyingine.", "Each community in a county gets its own agreement (regulation 28). Do not accept another community's blanket deal."),
+    ],
+    activity: o("Tumia Zana ya Ukaguzi kwa ukurasa mmoja wa mkataba, kisha jadili alama nyekundu na kundi lako.", "Run one page of a contract through the Review Tool, then discuss the red flags with your circle."),
+    quiz: [
+      { q: o("Kabla ya kusaini mkataba wa Kiingereza, jamii ifanye nini?", "Before signing an English contract, what should the community do?"), options: [o("Kusaini haraka", "Sign quickly"), o("Kuomba tafsiri na ushauri huru wa kisheria", "Ask for translation and independent legal advice"), o("Kutegemea AI pekee", "Rely on AI alone")], answer: 1, why: o("AI inasaidia kuuliza maswali, wakili huru anasaidia kuamua.", "AI helps you ask questions, an independent lawyer helps you decide.") },
+      { q: o("Nani hawezi kuwa mwenyekiti wa kamati ya CDA?", "Who cannot chair the CDA committee?"), options: [o("Mwanamke", "A woman"), o("Kijana", "A young person"), o("Mwenye wadhifa wa kisiasa", "A holder of political office")], answer: 2, why: o("Kifungu cha 9(4) cha mfano wa CDA.", "Clause 9(4) of the CDA template.") },
+    ] },
+  { id: "m8", theme: "ai_trust", title: o("Kuamini AI kwa busara", "Trusting AI wisely"), minutes: 5,
+    points: [
+      o("AI ni msaidizi mwenye kasi, si mzee wala wakili. Inaweza kukosea huku ikijiamini.", "AI is a fast helper, not an elder or a lawyer. It can be wrong and still sound confident."),
+      o("Hakiki mambo ya pesa, sheria na ardhi na mtu unayemwamini au hati ya awali.", "Check money, law and land matters with a trusted person or the original document."),
+      o("Usiweke namba za kitambulisho, PIN au siri za jamii kwenye AI yoyote. Bonyeza 'Si sahihi' kuripoti kosa.", "Never put ID numbers, PINs or community secrets into any AI. Press 'Not right' to report a mistake."),
+    ],
+    activity: o("Muulize msaidizi swali unalojua jibu lake, kisha angalia kama alipata sahihi.", "Ask the assistant a question you already know the answer to, then check if it got it right."),
+    quiz: [
+      { q: o("AI inasema mkataba ni salama. Ufanye nini?", "AI says a contract is safe. What do you do?"), options: [o("Kusaini mara moja", "Sign at once"), o("Kuhakiki na wakili huru na jamii", "Check with an independent lawyer and the community"), o("Kutoa PIN yako", "Share your PIN")], answer: 1, why: o("AI haibebi uwajibikaji, jamii ndiyo inabeba.", "AI carries no responsibility, the community does.") },
+      { q: o("Ni nini hupaswi kuweka kwenye AI?", "What should you never type into an AI?"), options: [o("Swali kuhusu mvua", "A question about rain"), o("Neno 'kaboni'", "The word 'carbon'"), o("PIN na namba za kitambulisho", "PINs and ID numbers")], answer: 2, why: o("Data nyeti ikitoka, haiwezi kurudishwa kwa urahisi.", "Sensitive data, once out, is hard to take back.") },
+    ] },
+];
+
+// Short, sourced answers: the bot's offline brain and the context handed to the model.
+export type Card = { id: string; theme: Theme; words: string[]; simple: T; detail: T; analogy: T; source: string };
+export const CARDS: Card[] = [
+  { id: "credit", theme: "carbon_basics", words: ["kaboni", "carbon", "credit", "mkopo", "mikopo"],
+    simple: o("Mkopo wa kaboni ni kama risiti inayosema tani moja ya gesi chafu imepunguzwa. Kampuni hununua risiti hiyo ili kufidia uchafuzi wake.", "A carbon credit is like a receipt saying one tonne of polluting gas was avoided. A company buys that receipt to offset its pollution."),
+    detail: o("Mkopo mmoja = tani moja ya CO2e iliyopunguzwa au kuondolewa, hutolewa na kiwango kama Verra au Gold Standard baada ya ukaguzi, na hustaafishwa unapotumiwa. Kenya, miradi lazima ipitie Mamlaka Teule ya Taifa chini ya Kanuni za 2024.", "One credit = one tonne of CO2e reduced or removed, issued by a standard such as Verra or Gold Standard after audit, and retired on use. In Kenya, projects go through the Designated National Authority under the 2024 Regulations."),
+    analogy: o("Fikiria jirani anakulipa usikate mti wako kwa sababu yeye anachoma kuni. Mti unabaki, lakini moshi wake pia unabaki. Hilo ndilo swali la kaboni.", "Imagine a neighbour pays you not to cut your tree because they burn firewood. The tree stays, but so does their smoke. That is the carbon question."),
+    source: "Climate Change (Carbon Markets) Regulations 2024, LN 84" },
+  { id: "share", theme: "benefits", words: ["mgao", "asilimia", "40", "25", "share", "percent", "mapato", "earning", "pesa", "money", "faida", "benefit", "malipo"],
+    simple: o("Sheria inasema jamii ipate angalau 40% kwa miradi ya ardhi na 25% kwa isiyo ya ardhi, kwenye ardhi ya umma au jamii. Lakini huhesabiwa baada ya gharama za biashara, hivyo uliza gharama hizo ni zipi.", "The rules say a community gets at least 40% for land projects and 25% for non-land projects, on public or community land. But that is counted after business costs, so ask what those costs are."),
+    detail: o("Kanuni 29(1): angalau 40% (ardhi) au 25% (isiyo ya ardhi) ya mapato ya jumla ya mwaka uliopita ukiondoa gharama za kufanya biashara. Kanuni 29(3): miradi binafsi kwenye ardhi binafsi haihusiki. Kanuni 29(4): kamati ya jamii husimamia na kugawa. Mfano wa CDA kifungu cha 8 unataka ripoti ya mwaka.", "Reg 29(1): at least 40% (land) or 25% (non-land) of aggregate earnings of the previous year less cost of doing business. Reg 29(3): private projects on private land are excluded. Reg 29(4): a community committee manages and disburses. CDA template clause 8 requires yearly reports."),
+    analogy: o("Ukiuza ng'ombe kwa 100 na mtu akasema 'nimetumia 90 kwa gharama', mgao wako ni wa ile 10 tu. Ndiyo maana lazima uone hesabu.", "If you sell a cow for 100 and someone says 'I spent 90 on costs', your share is only of the 10. That is why you must see the accounts."),
+    source: "Carbon Markets Regulations 2024, reg 29; Fourth Schedule cl 8" },
+  { id: "fpic", theme: "fpic", words: ["fpic", "ridhaa", "consent", "kukubali", "agree", "mkutano", "meeting", "kulazimisha", "pressure", "ushirikishwaji"],
+    simple: o("FPIC ni haki ya jamii kusema ndiyo au hapana bila shinikizo, baada ya kuelewa kila kitu, kabla ya mradi kuanza. Mkutano mmoja au sahihi ya kiongozi mmoja si ridhaa.", "FPIC is a community's right to say yes or no without pressure, after understanding everything, before a project starts. One meeting or one leader's signature is not consent."),
+    detail: o("Kanuni za 2024 zinataka nyaraka za FPIC kwa miradi yote ya ardhi ya jamii, na mfano wa CDA unataka ripoti ya mashauriano na kumbukumbu za mikutano ziambatishwe. Andika mikutano, lugha iliyotumika, na waliohudhuria wakiwemo wanawake na vijana.", "The 2024 Regulations require FPIC documentation for all community land-based projects, and the CDA template requires the consultation report and meeting records to be annexed. Record meetings, the language used and who attended, including women and youth."),
+    analogy: o("Ni kama mazungumzo ya ndoa: familia inauliza, inachunguza, inakaa, na inaweza kukataa. Hakuna kinachopokelewa kabla ya kukubaliana.", "It is like a marriage negotiation: the family asks, investigates, sits together, and may refuse. Nothing is accepted before agreement."),
+    source: "Carbon Markets Regulations 2024; Fourth Schedule recitals 3-4" },
+  { id: "cda", theme: "contracts", words: ["cda", "mkataba", "contract", "agreement", "makubaliano", "kamati", "committee", "sahihi", "sign", "kusaini"],
+    simple: o("CDA ni mkataba kati ya jamii na mwekezaji unaoeleza nani anafanya nini na pesa zinavyotumika. Hudumu maisha yote ya mradi, hivyo usisaini kwa haraka. Omba wakili huru.", "A CDA is the agreement between a community and the developer saying who does what and how money is used. It lasts the life of the project, so do not rush to sign. Ask for an independent lawyer."),
+    detail: o("Jedwali la Nne: CDA hudumu maisha ya uzalishaji ya mradi; kamati ina wawakilishi waliochaguliwa wa wanawake, wazee, vijana, walio pembezoni na watu wenye ulemavu, pamoja na serikali, AZAKI na mwekezaji; mwenyekiti au katibu hawezi kuwa mwenye wadhifa wa kisiasa. Kanuni 28: kila jamii ina CDA yake.", "Fourth Schedule: a CDA runs for the productive life of the project; the committee has elected representatives of women, elders, youth, marginalised groups and persons with disability, plus government, CSOs and the proponent; the chair or secretary cannot hold political office. Reg 28: each community has its own CDA."),
+    analogy: o("Mkataba ni kama daraja: likijengwa vibaya, wajukuu wako pia watavuka juu yake.", "A contract is like a bridge: built badly, your grandchildren must still cross it."),
+    source: "Carbon Markets Regulations 2024, reg 28; Fourth Schedule cl 2, 9" },
+  { id: "land", theme: "land_rights", words: ["ardhi", "land", "umiliki", "ownership", "hati", "title", "kusajili", "register", "mahakama", "court"],
+    simple: o("Mkataba wa kaboni hauuzi ardhi yenu, lakini unaweza kubadilisha jinsi mnavyotumia ardhi. Kwanza jua kama ardhi imesajiliwa, na nani anaamua.", "A carbon contract does not sell your land, but it can change how you use it. First find out if the land is registered and who decides."),
+    detail: o("Katiba Ibara ya 63 na Sheria ya Ardhi ya Jamii 2016 zinalinda ardhi ya jamii. Pale jamii ina Kamati ya Usimamizi wa Ardhi ya Jamii, Jedwali la Nne linaihusisha moja kwa moja katika kamati ya CDA. Kagua hati kabla ya kukubali.", "Article 63 of the Constitution and the Community Land Act 2016 protect community land. Where a community has a Community Land Management Committee, the Fourth Schedule links it to the CDA committee. Check the documents before agreeing."),
+    analogy: o("Ni kama kukodisha nyumba: bado ni yako, lakini mpangaji ana masharti. Soma masharti.", "It is like renting out a house: still yours, but the tenant has terms. Read the terms."),
+    source: "Constitution art 63; Community Land Act 2016; Fourth Schedule cl 9(5)" },
+  { id: "grazing", theme: "ecology", words: ["malisho", "graz", "mifugo", "livestock", "ukame", "drought", "udongo", "soil", "nyasi", "grass", "msitu", "forest", "miti", "tree", "jadi", "tradition"],
+    simple: o("Kaboni ya malisho huhifadhiwa kwenye udongo na nyasi. Mradi unaweza kutaka mabadiliko ya kuchunga, hivyo ulizeni nini kitatokea wakati wa ukame na mifugo ikihitaji kuhama.", "Rangeland carbon sits in soil and grass. A project may want grazing changes, so ask what happens in drought when livestock must move."),
+    detail: o("Uliza: masharti ya kuhama wakati wa ukame, nani anabeba hatari kaboni ikipungua, na nani anamiliki data. Maarifa ya jadi yatambuliwe na kulindwa katika mkataba.", "Ask about movement rules in drought, who carries the risk if carbon falls, and who owns the data. Traditional knowledge should be recognised and protected in the agreement."),
+    analogy: o("Udongo ni kama akiba benki: mvua na utunzaji huweka, ukame na kuchunga kupita kiasi hutoa.", "Soil is like a savings account: rain and care deposit, drought and overgrazing withdraw."),
+    source: "Council guidance, check against the project design document" },
+  { id: "measure", theme: "measurement", words: ["kupima", "measure", "mrv", "baseline", "msingi", "additionality", "ziada", "ukaguzi", "audit", "verra", "mkaguzi", "buffer"],
+    simple: o("Mikopo huhesabiwa kwa kulinganisha ardhi na makisio ya hali bila mradi. Mkaguzi huru hukagua, na jamii ina haki ya kuuliza matokeo.", "Credits are counted by comparing land with an estimate of what would happen without the project. An independent auditor checks, and the community can ask for the results."),
+    detail: o("Maneno ya kuuliza: baseline, additionality, leakage, buffer pool, crediting period. Omba hati ya muundo wa mradi na utafute mradi kwenye sajili ya kiwango husika.", "Terms to ask about: baseline, additionality, leakage, buffer pool, crediting period. Ask for the project design document and look the project up on its standard's registry."),
+    analogy: o("Ni kama kupima ng'ombe kabla na baada ya mvua. Ukikosea uzito wa mwanzo, hesabu yote inakuwa ya uongo.", "It is like weighing a cow before and after the rains. Get the first weight wrong and every sum after is false."),
+    source: "Council guidance, check against the carbon standard" },
+  { id: "ai", theme: "ai_trust", words: ["akili bandia", "roboti", "chatbot", "kuamini", "trust", "faragha", "privacy", "tapeli", "scam"],
+    simple: o("Mimi ni programu ya AI, si mtu. Ninaweza kukosea. Hakiki mambo ya pesa, sheria na ardhi na mtu unayemwamini. Usiniambie PIN yako wala namba ya kitambulisho.", "I am an AI program, not a person. I can be wrong. Check money, law and land matters with someone you trust. Do not tell me your PIN or ID number."),
+    detail: o("AI hutumia mifumo ya maneno, hivyo inaweza kubuni taarifa. Itumie kama msaidizi wa kuuliza maswali, si mwamuzi. Unaweza kupakua data yako au kuifuta kutoka kwenye Wasifu.", "AI works from word patterns, so it can invent things. Use it as a helper for asking questions, not as a judge. You can export or delete your data from Profile."),
+    analogy: o("AI ni kama jirani aliyesoma vitabu vingi: anajua mengi, lakini si kila anachosema ni kweli.", "AI is like a neighbour who has read many books: knows a lot, but not everything said is true."),
+    source: "Council guidance" },
+];
