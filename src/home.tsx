@@ -4,6 +4,7 @@ import { AUDIENCES, THEMES } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
 import { AreaChart } from "./charts";
 import { DEMO, Failed, Loading, Mascot, api, useApp, useData, useL, useT } from "./core";
+import { Land } from "./journey";
 import { InstallButton } from "./main";
 
 export type LearnData = {
@@ -24,7 +25,7 @@ export function HomePage() {
   const nextM = MODULES.find((m) => m.id === next?.moduleId);
   const listening = me!.intakeStep < me!.intakeTotal;
   const stats = [
-    { icon: BookOpenCheck, n: `${done.length}/${MODULES.length}`, name: L("Masomo", "Lessons"), tone: "lilac" },
+    { icon: BookOpenCheck, n: `${done.length}/${MODULES.length}`, name: L("Vituo vya safari", "Journey stops"), tone: "lilac" },
     { icon: Target, n: `${avg}%`, name: L("Wastani wa majaribio", "Quiz average"), tone: "pink" },
     { icon: Flame, n: `${days}/7`, name: L("Siku za kujifunza", "Learning days"), tone: "mint" },
     { icon: MessagesSquare, n: data.circles.length, name: L("Makundi yangu", "My circles"), tone: "butter" },
@@ -36,12 +37,16 @@ export function HomePage() {
       {listening && (
         <button className="banner" onClick={() => go("chat")}><Mascot size={64} /><span><b>{L("Kwanza, tukusikilize", "First, let us listen to you")}</b><small>{L(`Maswali ${me!.intakeTotal - me!.intakeStep} yamebaki. Majibu yako yanaunda mafunzo ya jamii.`, `${me!.intakeTotal - me!.intakeStep} questions left. Your answers shape your community's training.`)}</small></span></button>
       )}
+      <section className="card land-card home-land">
+        <Land done={done.length} />
+        <div className="land-over"><b>{L("Ardhi yako inachanua", "Your land is coming to life")}</b><small>{L(`Miti ${done.length} kati ya ${MODULES.length}`, `${done.length} of ${MODULES.length} trees`)}</small><button className="btn small" onClick={() => go("learn")}>{L("Endelea safari", "Continue the journey")}</button></div>
+      </section>
       <div className="grid4">
         {stats.map((s) => <div key={s.name} className={`stat ${s.tone}`}><s.icon size={30} aria-hidden /><div><b>{s.n}</b><span>{s.name}</span></div></div>)}
       </div>
       <div className="grid-main">
         <section className="card"><h2>{L("Shughuli za wiki hii", "This week's activity")}</h2>
-          <AreaChart rows={data.activity.map((a) => ({ ...a, day: a.day.slice(5) }))} series={[{ key: "n", name: L("Shughuli", "Activity"), color: "#6250d6" }]} label={L("Shughuli za siku saba", "Activity over seven days")} />
+          <AreaChart rows={data.activity.map((a) => ({ ...a, day: a.day.slice(5) }))} series={[{ key: "n", name: L("Shughuli", "Activity"), color: "#0f7a4b" }]} label={L("Shughuli za siku saba", "Activity over seven days")} />
         </section>
         <section className="card today">
           <h2>{L("Somo lijalo", "Next lesson")}</h2>

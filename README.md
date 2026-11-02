@@ -44,6 +44,10 @@ Open http://localhost:5199. The API prints the demo admin login. Demo learner: `
 | Translation | Translate tool plus glossary |
 | Understanding AI trust | Module 8, "This is AI" labels, sources, "Not right" button |
 
+## The journey
+
+Lessons are a conversation, not slides. Mzee Sironka, a fictional AI guide, walks the learner through one fictional village, Enkare (`shared/story.ts`). Each stop opens with a scene, asks a question in the learner's own words (which feeds the community analysis), checks understanding through choices, and plants a tree on the learner's own land, which slowly comes back to life. Read-aloud uses the device voice where one exists for the language.
+
 ## The council
 
 Questions route by keyword to one of seven seats: Carbon Analyst, Community Lawyer, Knowledge Keeper, Rangeland Ecologist, Community Educator, Benefit Analyst, AI Safety Guide. These are AI roles, not real people, and the app says so.

@@ -44,7 +44,7 @@ async function callClaude(system: string, messages: Anthropic.MessageParam[], ma
   }
 }
 
-async function saveInsight(u: BotUser, text: string, hint?: Theme) {
+export async function saveInsight(u: BotUser, text: string, hint?: Theme) {
   const { theme, kind, sentiment } = classify(text, hint);
   await q("insert into insights (user_id, community_id, body, theme, kind, sentiment, shareable) values ($1,$2,$3,$4,$5,$6,$7)",
     [u.id, u.community_id, text, theme, kind, sentiment, u.consent_share]);

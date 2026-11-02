@@ -49,21 +49,48 @@ export const Failed = ({ retry }: { retry: () => void }) => {
   return <div className="pad"><p>{L("Imeshindikana kupakia. Angalia mtandao wako.", "Could not load. Check your connection.")}</p><button className="btn" onClick={retry}>{L("Jaribu tena", "Try again")}</button></div>;
 };
 
-// The friendly guide: an acacia with a face, drawn inline so it loads on weak networks.
+// The guide: a Maasai elder in a red shuka and beaded collar, drawn inline so it loads on weak networks.
 export const Mascot = ({ size = 96 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="Msaidizi">
-    <ellipse cx="60" cy="108" rx="38" ry="7" fill="#d9cfe9" />
-    <rect x="52" y="62" width="16" height="44" rx="7" fill="#c98a4b" />
-    <path d="M60 12C32 12 12 28 12 48c0 15 14 26 30 26h36c16 0 30-11 30-26 0-20-20-36-48-36z" fill="#7cc98a" />
-    <path d="M28 36c6-10 16-15 28-16" stroke="#a6e0ae" strokeWidth="5" strokeLinecap="round" fill="none" />
-    <circle cx="46" cy="46" r="5" fill="#2a1a3d" /><circle cx="74" cy="46" r="5" fill="#2a1a3d" />
-    <circle cx="48" cy="44" r="1.6" fill="#fff" /><circle cx="76" cy="44" r="1.6" fill="#fff" />
-    <path d="M50 57c6 6 14 6 20 0" stroke="#2a1a3d" strokeWidth="3" strokeLinecap="round" fill="none" />
-    <circle cx="36" cy="55" r="4.5" fill="#f4a9b8" opacity=".8" /><circle cx="84" cy="55" r="4.5" fill="#f4a9b8" opacity=".8" />
+    <clipPath id="ma"><circle cx="60" cy="60" r="60" /></clipPath>
+    <g clipPath="url(#ma)">
+      <rect width="120" height="120" fill="#bfe3ee" />
+      <circle cx="92" cy="26" r="15" fill="#f6c453" />
+      <path d="M0 92c22-12 44-14 66-8s38 4 54-6v42H0z" fill="#7fae5c" />
+      <path d="M12 120c2-28 24-40 48-40s46 12 48 40z" fill="#c1272d" />
+      <path d="M26 96l40 24M44 86l44 34M84 88l-36 32M100 100l-22 20M20 108l14 12" stroke="#7d1216" strokeWidth="2.5" />
+      <path d="M12 120c6-20 18-30 34-36l30 36z" fill="#d6403f" />
+      <rect x="50" y="62" width="20" height="24" rx="9" fill="#5a3320" />
+      <path d="M31 80q29 34 58 0" fill="none" stroke="#fff" strokeWidth="5" strokeDasharray="4 3" />
+      <path d="M36 77q24 27 48 0" fill="none" stroke="#2a78d6" strokeWidth="5" />
+      <path d="M41 74q19 19 38 0" fill="none" stroke="#f6c453" strokeWidth="5" />
+      <path d="M45 71q15 12 30 0" fill="none" stroke="#c1272d" strokeWidth="4" />
+      <circle cx="37" cy="47" r="4.5" fill="#5f3623" /><circle cx="83" cy="47" r="4.5" fill="#5f3623" />
+      <path d="M37 52v9M83 52v9" stroke="#f6c453" strokeWidth="2.5" />
+      <circle cx="37" cy="63" r="2.8" fill="#c1272d" /><circle cx="83" cy="63" r="2.8" fill="#2a78d6" />
+      <ellipse cx="60" cy="45" rx="23" ry="27" fill="#6f4329" />
+      <path d="M37 42c-1-26 47-26 46 0-6-11-40-11-46 0z" fill="#1c120c" />
+      <path d="M38 37q22-10 44 0" fill="none" stroke="#f6c453" strokeWidth="3.5" />
+      <path d="M38 37q22-10 44 0" fill="none" stroke="#c1272d" strokeWidth="3.5" strokeDasharray="3 5" />
+      <circle cx="51" cy="45" r="2.6" fill="#1c120c" /><circle cx="69" cy="45" r="2.6" fill="#1c120c" />
+      <path d="M46 39q5-3 9 0M65 39q5-3 9 0" stroke="#1c120c" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <path d="M50 57q10 9 20 0z" fill="#fff" stroke="#3a2013" strokeWidth="1.5" strokeLinejoin="round" />
+    </g>
   </svg>
 );
 
-export const Avatar = ({ name, color = "#6250d6", size = 40 }: { name: string; color?: string; size?: number }) => (
+export const Landscape = () => (
+  <svg className="land" viewBox="0 0 800 220" preserveAspectRatio="xMidYMax slice" aria-hidden>
+    <circle cx="620" cy="96" r="52" fill="#f6c453" opacity=".9" />
+    <path d="M0 150c120-50 240-50 360-20s300 20 440-40v130H0z" fill="#2f7d5b" opacity=".55" />
+    <path d="M0 186c160-36 300-30 460-10s240 4 340-20v64H0z" fill="#17392b" />
+    <path d="M196 182v-58" stroke="#17392b" strokeWidth="7" />
+    <path d="M196 140l-34-22M196 132l32-20M196 150l22-12" stroke="#17392b" strokeWidth="4" />
+    <path d="M120 112c26-22 128-24 158 0-24 12-134 14-158 0z" fill="#17392b" />
+  </svg>
+);
+
+export const Avatar = ({ name, color = "#2f7d5b", size = 40 }: { name: string; color?: string; size?: number }) => (
   <span className="avatar" style={{ background: color, width: size, height: size, fontSize: size * 0.38 }} aria-hidden>
     {name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
   </span>

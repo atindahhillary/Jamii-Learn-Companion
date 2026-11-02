@@ -46,8 +46,9 @@ export function Chat() {
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!data) return;
-    const hello = data.intakeQuestion ? [{ id: "q", role: "bot", expert: "mwalimu", body: `${L("Karibu. Kwanza nataka kukusikiliza.", "Welcome. First I want to listen to you.")}\n\n${data.intakeQuestion}` }] : [];
-    setMsgs([...data.messages, ...hello]);
+    const hello = data.intakeQuestion ? [{ id: "q", role: "bot", expert: "mwalimu", body: `${L("Karibu, rafiki. Mimi ni Mzee Sironka, kiongozi wako wa safari. Mimi ni AI, si mzee halisi. Kabla ya kutembea, nataka kukusikiliza.", "Welcome, friend. I am Mzee Sironka, your journey guide. I am an AI, not a real elder. Before we walk, I want to listen to you.")}\n\n${data.intakeQuestion}` }] : [];
+    const open = !data.messages.length && !hello.length ? [{ id: "q", role: "bot", expert: "mwalimu", body: L("Karibu. Uliza swali lolote kuhusu kaboni, ardhi, mikataba au mgao wa mapato.", "Welcome. Ask anything about carbon, land, contracts or benefit sharing.") }] : [];
+    setMsgs([...data.messages, ...hello, ...open]);
   }, [data]);
   useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [msgs, busy]);
 
@@ -77,14 +78,14 @@ export function Chat() {
     <div className="chat">
       <section className="council card" aria-label={L("Baraza la wataalamu", "Council of experts")}>
         <h2>{L("Baraza la Wataalamu", "Council of Experts")}</h2>
-        <button className="seat" aria-pressed={!expert} onClick={() => setExpert("")}><Seat id="all" color="#3d1f5c" /><span><b>{L("Baraza lote", "Whole council")}</b><small>{L("Tunachagua mtaalamu kwa swali lako", "We pick the expert for your question")}</small></span></button>
+        <button className="seat" aria-pressed={!expert} onClick={() => setExpert("")}><Seat id="all" color="#1f4d3a" /><span><b>{L("Baraza lote", "Whole council")}</b><small>{L("Tunachagua mtaalamu kwa swali lako", "We pick the expert for your question")}</small></span></button>
         {COUNCIL.map((e) => (
           <button key={e.id} className="seat" aria-pressed={expert === e.id} onClick={() => setExpert(e.id)}><Seat id={e.id} color={e.color} /><span><b>{T(e.name)}</b><small>{T(e.role)}</small></span></button>
         ))}
       </section>
       <section className="thread card" aria-label={L("Mazungumzo", "Conversation")}>
         <header className="row-between thread-head">
-          <span className="row"><Seat id={expert ? seat.id : "all"} color={expert ? seat.color : "#3d1f5c"} /><span><b>{expert ? T(seat.name) : L("Baraza la Wataalamu", "Council of Experts")}</b><small className="muted block">{L("Hii ni AI, inaweza kukosea", "This is AI, it can be wrong")}</small></span></span>
+          <span className="row"><Seat id={expert ? seat.id : "all"} color={expert ? seat.color : "#1f4d3a"} /><span><b>{expert ? T(seat.name) : L("Baraza la Wataalamu", "Council of Experts")}</b><small className="muted block">{L("Hii ni AI, inaweza kukosea", "This is AI, it can be wrong")}</small></span></span>
           <button className="btn wa small" onClick={() => setWa(true)}><MessageCircleMore size={17} aria-hidden /> WhatsApp</button>
         </header>
         <div className="messages" aria-live="polite">

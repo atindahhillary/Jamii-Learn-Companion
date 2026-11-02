@@ -1,7 +1,7 @@
 import { ShieldCheck, Sprout } from "lucide-react";
 import { useState } from "react";
 import { AUDIENCES, type Audience } from "../shared/content";
-import { Mascot, useApp, useL, useT } from "./core";
+import { Landscape, Mascot, useApp, useL, useT } from "./core";
 import { demoSignIn } from "./demo";
 
 export function DemoAuth() {
@@ -24,6 +24,7 @@ export function DemoAuth() {
           <li>{L("Pata mafunzo yanayotokana na mahitaji ya jamii yako", "Get training built from your community's needs")}</li>
           <li>{L("Jifunze kwenye simu, pamoja na wenzako", "Learn on your phone, with your peers")}</li>
         </ul>
+        <Landscape />
       </section>
       <section className="card auth-form">
         <h2>{L("Jaribu onyesho", "Try the demo")}</h2>

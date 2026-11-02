@@ -4,7 +4,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { AUDIENCES, INTAKE, THEMES, type Audience, type Lang, type Theme } from "../shared/content.js";
 import { MODULES } from "../shared/curriculum.js";
 import { MIN_GROUP, buildCurriculum, gapScores } from "./analyze.js";
-import { circleReply, intakeQuestion, nextLesson, respond, reviewDocument, translate, type BotUser, type Mode } from "./bot.js";
+import { circleReply, intakeQuestion, nextLesson, respond, reviewDocument, saveInsight, translate, type BotUser, type Mode } from "./bot.js";
 import { q } from "./db.js";
 import { audit, checkSecret, clean, decrypt, encrypt, hashSecret, limited, maskPhone, newToken, normalizePhone, phoneHash, pinProblem, redact, sha, verifyMetaSignature } from "./security.js";
 import { sendText, sendTemplate, waConfigured } from "./whatsapp.js";
@@ -172,6 +172,12 @@ app.post("/learn/quiz", auth, async (c) => {
   const score = Math.round((right / m.quiz.length) * 100);
   await q("insert into progress (user_id, module_id, score) values ($1,$2,$3) on conflict (user_id, module_id) do update set score = greatest(progress.score, excluded.score), updated_at = now()", [u.id, m.id, score]);
   return c.json({ score, right, total: m.quiz.length });
+});
+app.post("/learn/reflect", auth, async (c) => {
+  const b = await body(c), m = MODULES.find((x) => x.id === b.moduleId), text = redact(clean(b.text, 600));
+  if (!m || !text) return c.json({ error: "fields" }, 400);
+  await saveInsight(c.get("user"), text, m.theme);
+  return c.json({ ok: true });
 });
 app.post("/learn/practice", auth, async (c) => {
   const score = Math.max(0, Math.min(100, Number((await body(c)).score) || 0));

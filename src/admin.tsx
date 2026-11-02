@@ -6,7 +6,7 @@ import { AreaChart, Bars, Donut } from "./charts";
 import { Avatar, DEMO, Failed, Loading, api, useData, useL, useT } from "./core";
 import { demoCsv } from "./demo";
 
-const STAGE_COLORS: Record<string, string> = { listening: "#eda100", started: "#eb6834", learning: "#6250d6", completed: "#1baf7a" };
+const STAGE_COLORS: Record<string, string> = { listening: "#eda100", started: "#e8743a", learning: "#0f7a4b", completed: "#2a78d6" };
 
 export function Admin() {
   const L = useL(), T = useT();
@@ -40,7 +40,7 @@ export function Admin() {
         <div className="grid-main">
           <section className="card"><h2>{L("Ushiriki wa siku 14", "Participation, 14 days")}</h2>
             <p className="hero-num"><b>{c.web + c.wa}</b> <span className="muted small">{L("ujumbe", "messages")} · {c.web} {L("wavuti", "web")} · {c.wa} WhatsApp</span></p>
-            <AreaChart rows={o.data.activity} series={[{ key: "messages", name: L("Ujumbe", "Messages"), color: "#6250d6" }, { key: "lessons", name: L("Masomo", "Lessons"), color: "#eb6834" }]} label={L("Ujumbe na masomo kwa siku", "Messages and lessons per day")} />
+            <AreaChart rows={o.data.activity} series={[{ key: "messages", name: L("Ujumbe", "Messages"), color: "#0f7a4b" }, { key: "lessons", name: L("Masomo", "Lessons"), color: "#e8743a" }]} label={L("Ujumbe na masomo kwa siku", "Messages and lessons per day")} />
           </section>
           <section className="card"><h2>{L("Hatua za safari", "Journey stages")}</h2>
             <Donut parts={parts} center={`${completion}%`} sub={L("wanajifunza", "learning")} label={L("Washiriki kwa hatua", "Learners by stage")} />

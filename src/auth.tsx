@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AUDIENCES, type Audience } from "../shared/content";
-import { Mascot, api, useApp, useL, useT } from "./core";
+import { Landscape, Mascot, api, useApp, useL, useT } from "./core";
 
 const ERR: Record<string, [string, string]> = {
   fields: ["Jaza jina na nambari sahihi ya simu ya Kenya.", "Enter your name and a valid Kenyan phone number."],
@@ -47,6 +47,7 @@ export function Auth() {
           <li>{L("Pata mafunzo yanayotokana na mahitaji ya jamii yako", "Get training built from your community's needs")}</li>
           <li>{L("Jifunze kwenye simu au WhatsApp, pamoja na wenzako", "Learn on your phone or WhatsApp, with your peers")}</li>
         </ul>
+        <Landscape />
       </section>
       <form className="card auth-form" onSubmit={submit}>
         <h2>{mode === "up" ? L("Jiunge", "Join") : L("Ingia", "Sign in")}</h2>

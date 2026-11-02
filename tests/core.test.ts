@@ -30,10 +30,17 @@ describe("public demo", () => {
     expect(r.body).toContain("40%");
     expect(JSON.stringify(await demoApi("/chat", "GET", {}))).not.toContain("0799888777");
     expect((await demoApi("/learn", "GET", {})).plan[0].moduleId).toBe("m1");
+    const { STORY } = await import("../shared/story.js");
+    for (const m of MODULES) expect(STORY[m.id].ask.sw && STORY[m.id].ask.en).toBeTruthy();
     demoSignIn("admin", "", "sw", "herder");
     const report = await demoApi("/admin/report", "GET", {});
     expect(report.voices.length).toBeGreaterThan(0);
     expect((await demoApi("/admin/overview", "GET", {})).counts.learners).toBe(12);
+    expect((await demoApi("/me", "GET", {})).intakeStep).toBe(5);
+    await demoApi("/me", "DELETE", {});
+    demoSignIn("admin", "", "sw", "herder");
+    demoSignIn("learner", "Mgeni", "sw", "herder");
+    expect((await demoApi("/chat", "GET", {})).intakeQuestion).toContain("Umesikia");
   });
 });
 

@@ -4,8 +4,8 @@
   "description": "Jifunze masoko ya kaboni kwa Kiswahili na Kiingereza",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f4effa",
-  "theme_color": "#3d1f5c",
+  "background_color": "#f5f2e8",
+  "theme_color": "#1f4d3a",
   "lang": "sw",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },

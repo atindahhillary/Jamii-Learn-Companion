@@ -1,52 +1,10 @@
 import { ArrowLeft, Send } from "lucide-react";
 import { useState } from "react";
-import { ROLES, SCENES, THEMES } from "../shared/content";
-import { MODULES, type Module } from "../shared/curriculum";
+import { ROLES, SCENES } from "../shared/content";
+import { MODULES } from "../shared/curriculum";
 import { DEMO, Failed, Loading, api, useApp, useData, useL, useT } from "./core";
 import type { LearnData } from "./home";
-
-function Lesson({ m, onDone }: { m: Module; onDone: () => void }) {
-  const L = useL(), T = useT();
-  const [step, setStep] = useState(0), [answers, setAnswers] = useState<number[]>([]), [result, setResult] = useState<{ score: number } | null>(null), [err, setErr] = useState(false);
-  const point = m.points[step];
-  const submit = async () => {
-    try { setResult(await api("/learn/quiz", { body: { moduleId: m.id, answers } })); }
-    catch { setErr(true); }
-  };
-  return (
-    <div className="page narrow">
-      <button className="link back" onClick={onDone}><ArrowLeft size={16} aria-hidden /> {L("Rudi", "Back")}</button>
-      <h1>{T(m.title)}</h1>
-      {point ? (
-        <section className="card stack">
-          <small className="muted">{L("Sehemu", "Part")} {step + 1}/{m.points.length}</small>
-          <p className="big-title">{T(point)}</p>
-          <button className="btn" onClick={() => setStep(step + 1)}>{L("Endelea", "Continue")}</button>
-        </section>
-      ) : (
-        <section className="card stack">
-          <h2>{L("Jaribio fupi", "Short quiz")}</h2>
-          {m.quiz.map((q, i) => (
-            <fieldset key={i}>
-              <legend>{T(q.q)}</legend>
-              {q.options.map((op, j) => (
-                <label className="check" key={j}><input type="radio" name={`q${i}`} disabled={!!result} checked={answers[i] === j} onChange={() => { const a = [...answers]; a[i] = j; setAnswers(a); }} /> <span>{T(op)}</span></label>
-              ))}
-              {result && <p className="note">{answers[i] === q.answer ? L("Sahihi. ", "Correct. ") : L("Si sahihi. ", "Not quite. ")}{T(q.why)}</p>}
-            </fieldset>
-          ))}
-          {err && <p className="error" role="alert">{L("Haikutumwa. Angalia mtandao.", "Not sent. Check your connection.")}</p>}
-          {!result && <button className="btn" disabled={answers.filter((a) => a != null).length < m.quiz.length} onClick={submit}>{L("Wasilisha", "Submit")}</button>}
-          {result && <>
-            <p className="big-title">{L("Alama", "Score")}: {result.score}%</p>
-            <div className="safety"><b>{L("Kazi ya leo", "Today's activity")}: </b>{T(m.activity)}</div>
-            <button className="btn" onClick={onDone}>{L("Maliza", "Finish")}</button>
-          </>}
-        </section>
-      )}
-    </div>
-  );
-}
+import { Land, Lesson, Trail } from "./journey";
 
 function RolePlay({ onDone }: { onDone: () => void }) {
   const L = useL(), T = useT();
@@ -84,30 +42,16 @@ export function Learn() {
   const close = () => { setOpen(null); reload(); };
   if (open === "roleplay") return <RolePlay onDone={close} />;
   const m = MODULES.find((x) => x.id === open);
-  if (m) return <Lesson m={m} onDone={close} />;
   if (failed) return <Failed retry={reload} />;
   if (!data) return <Loading />;
+  const done = data.progress.filter((p) => p.module_id !== "roleplay").length;
+  if (m) return <Lesson key={m.id} m={m} doneBefore={done - (data.progress.some((p) => p.module_id === m.id) ? 1 : 0)} onDone={close} />;
   return (
     <div className="page">
-      <h1>{L("Mafunzo yangu", "My training")}</h1>
-      <p className="muted lead">{L("Mpangilio huu unatokana na maswali na wasiwasi wa jamii yako.", "This order comes from your community's questions and worries.")}</p>
-      <div className="lessons">
-        {data.plan.map((p) => {
-          const x = MODULES.find((y) => y.id === p.moduleId)!, d = data.progress.find((r) => r.module_id === x.id);
-          return (
-            <button key={x.id} className="lesson card" onClick={() => setOpen(x.id)}>
-              <small className="muted">{L("Siku", "Day")} {p.day} · {T(THEMES[x.theme])}</small>
-              <b>{T(x.title)}</b>
-              <span className="muted small">{d ? `${L("Alama", "Score")} ${d.score}%` : `${x.minutes} ${L("dakika", "min")}`}</span>
-            </button>
-          );
-        })}
-        <button className="lesson card play" onClick={() => setOpen("roleplay")}>
-          <small>{L("Mazoezi ya kikundi", "Group exercise")}</small>
-          <b>{L("Igizo: Mkutano wa kijiji", "Role play: The village meeting")}</b>
-          <span className="small">{L("Fanyeni mazungumzo na mwekezaji", "Negotiate with a developer")}</span>
-        </button>
-      </div>
+      <h1>{L("Safari yako", "Your journey")}</h1>
+      <p className="muted lead">{L("Tembea na Mzee Sironka kijijini Enkare. Njia hii imepangwa kutokana na maswali na wasiwasi wa jamii yako.", "Walk with Mzee Sironka through Enkare village. This path follows your community's questions and worries.")}</p>
+      <section className="card land-card"><Land done={done} /><p className="land-note"><b>{L("Ardhi yako", "Your land")}</b> · {L(`miti ${done} kati ya ${MODULES.length}`, `${done} of ${MODULES.length} trees`)}</p></section>
+      <Trail plan={data.plan} done={data.progress} onOpen={setOpen} onPlay={() => setOpen("roleplay")} />
     </div>
   );
 }

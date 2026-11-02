@@ -26,10 +26,12 @@ function load(): State {
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(memory)); } catch { /* blocked storage: this visit still works from memory */ } }
 
+// Admins skip the listening questions, without using up the learner's on the same device.
+const stepOf = (s: State) => (s.role === "admin" ? INTAKE.length : s.intakeStep);
+
 export function demoSignIn(role: "learner" | "admin", name: string, lang: Lang, audience: Audience) {
   const s = load();
   Object.assign(s, { role, lang, audience, name: name || (role === "admin" ? "Msimamizi" : "Mgeni") });
-  if (role === "admin") s.intakeStep = INTAKE.length;
   save();
 }
 
@@ -95,13 +97,15 @@ function overview(s: State) {
   };
 }
 
+const scrub = (t: string) => t.replace(/(?:\+?254|\b0)[17]\d{8}\b/g, "[nambari ya simu]").replace(/\b(?:id|kitambulisho|pin)\D{0,15}\d{4,9}\b/gi, "[siri]");
+
 function chat(s: State, text: string, mode: Mode, expertId: string) {
-  const u = { lang: s.lang, audience: s.audience, intake_step: s.intakeStep };
+  const u = { lang: s.lang, audience: s.audience, intake_step: stepOf(s) };
   const add = (m: Omit<Msg, "id" | "at">) => { const x = { ...m, id: s.nextId++, at: Date.now() }; s.messages.push(x); return x; };
   const keep = (t: string, hint?: Theme) => s.insights.push({ ...classify(t, hint), body: t, at: Date.now() });
-  const clean = text.replace(/(?:\+?254|\b0)[17]\d{8}\b/g, "[nambari ya simu]").replace(/\b(?:id|kitambulisho|pin)\D{0,15}\d{4,9}\b/gi, "[siri]");
+  const clean = scrub(text);
   add({ role: "user", body: clean });
-  if (s.intakeStep < INTAKE.length) {
+  if (stepOf(s) < INTAKE.length) {
     const cur = INTAKE[s.intakeStep];
     if (!/^(ruka|skip)$/i.test(clean.trim())) keep(clean, cur.theme);
     s.intakeStep += 1;
@@ -113,7 +117,7 @@ function chat(s: State, text: string, mode: Mode, expertId: string) {
   const expert = expertId ? expertById(expertId) : mode === "ask" ? routeExpert(clean) : expertById("mwalimu");
   const a = offlineAnswer(clean, u, mode);
   const m = add({ role: "bot", expert: expert.id, body: a.body, source: a.source });
-  return { id: m.id, body: a.body, expert: expert.id, source: a.source, intakeStep: s.intakeStep };
+  return { id: m.id, body: a.body, expert: expert.id, source: a.source, intakeStep: stepOf(s) };
 }
 
 export async function demoApi(path: string, method: string, b: any): Promise<any> {
@@ -123,7 +127,7 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
   if (!s.role) throw fail("auth", 401);
   const admin = s.role === "admin";
 
-  if (path === "/me" && method === "GET") return { id: "demo", name: s.name, role: s.role, lang: s.lang, audience: s.audience, village: null, consentAi: false, consentShare: s.consentShare, intakeStep: s.intakeStep, intakeTotal: INTAKE.length, phone: "", community: admin ? null : { name: "Jamii ya Mfano A", county: "Kajiado" }, whatsapp: false };
+  if (path === "/me" && method === "GET") return { id: "demo", name: s.name, role: s.role, lang: s.lang, audience: s.audience, village: null, consentAi: false, consentShare: s.consentShare, intakeStep: stepOf(s), intakeTotal: INTAKE.length, phone: "", community: admin ? null : { name: "Jamii ya Mfano A", county: "Kajiado" }, whatsapp: false };
   if (path === "/me" && method === "PATCH") {
     if (b.lang) s.lang = b.lang;
     if (b.audience in AUDIENCES) s.audience = b.audience;
@@ -132,7 +136,7 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
   }
   if (path === "/me/export") return { profile: { name: s.name, lang: s.lang, audience: s.audience }, messages: s.messages, insights: s.insights, progress: s.progress };
   if (path === "/me" && method === "DELETE") { memory = fresh(); try { localStorage.removeItem(KEY); } catch { /* nothing stored */ } return { ok: true }; }
-  if (path === "/chat" && method === "GET") return { messages: s.messages.slice(-60).map((m) => ({ ...m })), intakeQuestion: s.messages.length ? null : intakeQuestion({ lang: s.lang, audience: s.audience, intake_step: s.intakeStep }) };
+  if (path === "/chat" && method === "GET") return { messages: s.messages.slice(-60).map((m) => ({ ...m })), intakeQuestion: s.messages.length ? null : intakeQuestion({ lang: s.lang, audience: s.audience, intake_step: stepOf(s) }) };
   if (path === "/chat") return done(chat(s, String(b.text).slice(0, 1500), b.mode ?? "ask", b.expert ?? ""));
   if (path === "/chat/flag") { const m = s.messages.find((x) => x.id === Number(b.id)); if (m) m.flagged = true; return done({ ok: true }); }
   if (path === "/learn") return learnerView(s);
@@ -141,6 +145,11 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     const right = m.quiz.filter((q, i) => b.answers[i] === q.answer).length, score = Math.round((right / m.quiz.length) * 100);
     s.progress[m.id] = { score: Math.max(score, s.progress[m.id]?.score ?? 0), at: Date.now() };
     return done({ score, right, total: m.quiz.length });
+  }
+  if (path === "/learn/reflect") {
+    const m = MODULES.find((x) => x.id === b.moduleId), text = scrub(String(b.text).slice(0, 600));
+    if (m && text) s.insights.push({ ...classify(text, m.theme), body: text, at: Date.now() });
+    return done({ ok: true });
   }
   if (path === "/learn/practice") { s.progress.roleplay = { score: b.score, at: Date.now() }; return done({ ok: true }); }
   if (path === "/tools/review") return { ...reviewRules(b.text, s.lang), summary: null };
