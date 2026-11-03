@@ -1,7 +1,8 @@
 import { randomInt } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { AUDIENCES, INTAKE, THEMES, type Audience, type Lang, type Theme } from "../shared/content.js";
+import { AUDIENCES, COUNCIL, INTAKE, THEMES, type Audience, type Lang, type Theme } from "../shared/content.js";
+import { STARTERS, asText } from "../shared/council.js";
 import { MODULES } from "../shared/curriculum.js";
 import { MIN_GROUP, buildCurriculum, gapScores } from "./analyze.js";
 import { circleReply, intakeQuestion, nextLesson, respond, reviewDocument, saveInsight, translate, type BotUser, type Mode } from "./bot.js";
@@ -129,8 +130,8 @@ app.delete("/me", auth, async (c) => {
 
 app.get("/chat", auth, async (c) => {
   const u = c.get("user");
-  const history = await q("select id, role, expert, body, source, flagged, created_at from messages where user_id = $1 order by id desc limit 60", [u.id]);
-  return c.json({ messages: history.reverse(), intakeQuestion: history.length ? null : intakeQuestion(u) });
+  const history = await q("select id, role, expert, body, source, flagged, asks, created_at from messages where user_id = $1 order by id desc limit 60", [u.id]);
+  return c.json({ messages: history.reverse(), intakeQuestion: history.length ? null : intakeQuestion(u), starters: STARTERS.map((s) => s[u.lang as Lang]) });
 });
 app.post("/chat", auth, async (c) => {
   const u = c.get("user");
@@ -289,7 +290,7 @@ async function handleWhatsApp(phone: string, text: string) {
   if (/^(somo|lesson)$/i.test(text)) return sendText(norm, nextLesson(prog.map((p) => p.module_id), lang) ?? WA.menu[lang]);
   if (/^(maendeleo|progress)$/i.test(text)) return sendText(norm, `${prog.filter((p) => p.module_id !== "roleplay").length}/${MODULES.length}`);
   const r = await respond(known, text, "whatsapp");
-  return sendText(norm, r.body);
+  return sendText(norm, asText(r.replies, Object.fromEntries(COUNCIL.map((e) => [e.id, e.name[lang]]))));
 }
 
 app.use("/admin/*", auth, admin);

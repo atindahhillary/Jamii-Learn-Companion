@@ -56,7 +56,7 @@ The recordings come from Microsoft's Edge read-aloud voices through the unoffici
 
 ## The council
 
-Questions route by keyword to one of seven seats: Carbon Analyst, Community Lawyer, Knowledge Keeper, Rangeland Ecologist, Community Educator, Benefit Analyst, AI Safety Guide. These are AI roles, not real people, and the app says so.
+Seven AI seats (Carbon Analyst, Community Lawyer, Knowledge Keeper, Rangeland Ecologist, Community Educator, Benefit Analyst, AI Safety Guide) answer as a panel in `shared/council.ts`. The seat that owns the topic leads with a sourced answer, one or two others add their own angle, and each seat has its own ways of opening, so replies vary. People can pick one seat to hear it alone. The five listening questions are no longer a gate: specialists weave them into the conversation, react to worries, knowledge and ideas, and any question is answered straight away. Follow-up suggestions after each answer always lead to a sourced card. These are AI roles, not real people, and the app says so.
 
 ## How analysis works
 

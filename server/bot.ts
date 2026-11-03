@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { glossaryFor, intakeDone, intakeQuestion, offlineAnswer, reviewRules, type Mode } from "../shared/answers.js";
-import { AUDIENCES, INTAKE, expertById, routeExpert, type Audience, type Lang, type Theme } from "../shared/content.js";
+import { glossaryFor, intakeQuestion, offlineAnswer, reviewRules } from "../shared/answers.js";
+import { converse, type Mode } from "../shared/council.js";
+import { AUDIENCES, INTAKE, expertById, type Audience, type Lang, type Theme } from "../shared/content.js";
 import { CARDS, MODULES } from "../shared/curriculum.js";
 import { classify } from "./analyze.js";
 import { q } from "./db.js";
@@ -53,37 +54,38 @@ export async function saveInsight(u: BotUser, text: string, hint?: Theme) {
 const say = (u: BotUser, channel: string, role: string, body: string, expert: string | null = null, source: string | null = null) =>
   q<{ id: string }>("insert into messages (user_id, channel, role, expert, body, source) values ($1,$2,$3,$4,$5,$6) returning id", [u.id, channel, role, expert, body, source]);
 
+// The council answers; a pending listening question is whatever the last specialist asked.
 export async function respond(u: BotUser, raw: string, channel: "web" | "whatsapp", mode: Mode = "ask", expertId?: string, skipIntake = false) {
   const text = redact(raw);
+  const [last] = await q<{ asks: number | null }>("select asks from messages where user_id = $1 and role = 'bot' order by id desc limit 1", [u.id]);
+  const [{ n }] = await q<{ n: number }>("select count(*)::int as n from messages where user_id = $1", [u.id]);
+  const pending = skipIntake ? null : last ? last.asks : u.intake_step < INTAKE.length ? u.intake_step : null;
   await say(u, channel, "user", text);
-
-  if (!skipIntake && u.intake_step < INTAKE.length) {
-    const cur = INTAKE[u.intake_step];
-    const skip = /^(ruka|skip)$/i.test(text.trim());
-    if (!skip) await saveInsight(u, text, cur.theme);
-    u.intake_step += 1;
+  const turn = converse(text, u, { mode, expertId, pending, n, listen: !skipIntake });
+  if (turn.answered != null) {
+    await saveInsight(u, text, INTAKE[turn.answered].theme);
+    u.intake_step = Math.max(u.intake_step, turn.answered + 1);
     await q("update users set intake_step = $1 where id = $2", [u.intake_step, u.id]);
-    const next = intakeQuestion(u);
-    const body = next ?? intakeDone[u.lang];
-    const [m] = await say(u, channel, "bot", body, "mwalimu");
-    return { id: m.id, body, expert: "mwalimu", source: null, intakeStep: u.intake_step };
-  }
+  } else await saveInsight(u, text);
 
-  await saveInsight(u, text);
-  const expert = expertId ? expertById(expertId) : mode === "ask" ? routeExpert(text) : expertById("mwalimu");
-  const off = offlineAnswer(text, u, mode);
-  let body = off.body;
-  if (u.consent_ai) {
+  const lead = turn.replies.find((r) => r.source) ?? (turn.answered == null ? turn.replies[0] : undefined);
+  if (u.consent_ai && lead) {
     const history = (await q<{ role: string; body: string }>("select role, body from messages where user_id = $1 order by id desc limit 7", [u.id])).reverse();
     const first = history.findIndex((h) => h.role === "user"); // the API needs a user turn first
     const msgs: Anthropic.MessageParam[] = history.slice(first).map((h) => ({ role: h.role === "bot" ? "assistant" as const : "user" as const, content: h.role === "bot" ? h.body : `<user_text>${h.body}</user_text>` }));
     const ask = mode === "analogy" ? "Give one vivid analogy from pastoral or village life." : mode === "game" ? "Give one short group game that teaches this, with no materials needed." : "Answer the question.";
     const notes = CARDS.map((c) => `[${c.id}] ${c.detail.en} (${c.source})`).join("\n");
-    const ai = await callClaude(`You speak as the ${expert.name.en}: ${expert.focus.en}\nAudience: ${AUDIENCES[u.audience].en}. Reply in ${u.lang === "sw" ? "Kiswahili" : "English"}. ${ask}\nReference notes:\n${notes}`, msgs);
-    if (ai) body = ai;
+    const seat = expertById(lead.expert);
+    const ai = await callClaude(`You speak as the ${seat.name.en}: ${seat.focus.en}\nAudience: ${AUDIENCES[u.audience].en}. Reply in ${u.lang === "sw" ? "Kiswahili" : "English"}. ${ask}\nReference notes:\n${notes}`, msgs);
+    if (ai) lead.body = ai;
   }
-  const [m] = await say(u, channel, "bot", body, expert.id, off.source);
-  return { id: m.id, body, expert: expert.id, source: off.source, pic: off.pic, intakeStep: u.intake_step };
+  const saved = [];
+  for (const r of turn.replies) {
+    const [m] = await q<{ id: string }>("insert into messages (user_id, channel, role, expert, body, source, asks) values ($1,$2,'bot',$3,$4,$5,$6) returning id", [u.id, channel, r.expert, r.body, r.source, r.asks]);
+    saved.push({ ...r, id: m.id });
+  }
+  const main = saved.find((r) => r.source) ?? saved[0];
+  return { replies: saved, followups: turn.followups, intakeStep: u.intake_step, id: main?.id, body: saved.map((r) => r.body).join("\n\n"), expert: main?.expert, source: main?.source ?? null, pic: saved.find((r) => r.pic)?.pic ?? null };
 }
 
 export async function reviewDocument(u: BotUser, raw: string) {

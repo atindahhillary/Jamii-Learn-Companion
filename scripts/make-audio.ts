@@ -6,6 +6,7 @@ import { REACTIONS, audioKey, segments } from "../shared/audio-key.js";
 import { INTAKE, SCENES, type Audience, type Lang } from "../shared/content.js";
 import { CARDS, MODULES } from "../shared/curriculum.js";
 import { FINALE, STORY, WELCOME } from "../shared/story.js";
+import { DONE, FOOT, GAME, INVITE, LEAD_IN, NO_CARD, OPENERS, REACT, TAKES } from "../shared/council.js";
 
 const VOICES: Record<Lang, string> = { sw: "sw-KE-RafikiNeural", en: "en-KE-ChilembaNeural" };
 
@@ -17,6 +18,7 @@ function lines(lang: Lang) {
   for (const c of CARDS) all.push(c.simple[lang], c.detail[lang], c.analogy[lang], offlineAnswer(c.words[0], u, "game").body);
   all.push(offlineAnswer("zzz", u, "ask").body);
   INTAKE.forEach((_, i) => all.push(intakeQuestion({ ...u, intake_step: i })!));
+  all.push(DONE[lang], INVITE[lang], FOOT[lang], GAME[lang], NO_CARD[lang], ...LEAD_IN.map((x) => x[lang]), ...Object.values(OPENERS).flat().map((x) => x[lang]), ...Object.values(REACT).flat().map((x) => x[lang]), ...Object.values(TAKES).flat().map(([, x]) => x[lang]));
   for (const s of SCENES) all.push(s.text[lang], ...s.choices.map((c) => c.feedback[lang]));
   return [...new Set(all.flatMap(segments))];
 }

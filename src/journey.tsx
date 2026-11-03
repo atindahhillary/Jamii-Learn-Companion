@@ -103,7 +103,7 @@ export function Lesson({ m, doneBefore, onDone }: { m: Module; doneBefore: numbe
     setLog((l) => [...l, { who: "me", text: q }]);
     try {
       const r = await api("/learn/ask", { body: { text: q } });
-      setLog((l) => [...l, { who: "guide", text: r.body, pic: r.pic }]);
+      setLog((l) => [...l, ...(r.replies ?? [r]).map((x: { body: string; pic?: string | null }) => ({ who: "guide" as const, text: x.body, pic: x.pic }))]);
       say(r.body);
     } catch { setLog((l) => [...l, { who: "guide", text: L("Samahani, sikupata swali lako. Jaribu tena.", "Sorry, I did not get your question. Try again.") }]); }
     setThinking(false);

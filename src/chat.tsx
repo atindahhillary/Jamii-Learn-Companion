@@ -9,7 +9,8 @@ import { DEMO, Failed, Loading, api, useApp, useData, useL, useT } from "./core"
 
 const Seat = ({ id, size = 40 }: { id: string; color?: string; size?: number }) => <Person look={SEAT_LOOK[id] ?? "elder"} size={size} />;
 
-type Msg = { id: string; role: string; expert?: string | null; body: string; source?: string | null; flagged?: boolean; pic?: string | null };
+type Msg = { id: string; role: string; expert?: string | null; body: string; source?: string | null; flagged?: boolean; pic?: string | null; asks?: number | null };
+const wait = (ms: number) => new Promise((r) => setTimeout(r, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ms));
 
 function WhatsAppDialog({ onClose }: { onClose: () => void }) {
   const { me } = useApp();
@@ -41,17 +42,19 @@ export function Chat() {
   const { me, refresh, lang } = useApp();
   const L = useL(), T = useT();
   useEffect(() => stop, []);
-  const { data, failed, reload } = useData<{ messages: Msg[]; intakeQuestion: string | null }>("/chat");
+  const { data, failed, reload } = useData<{ messages: Msg[]; intakeQuestion: string | null; starters?: string[] }>("/chat");
   const [msgs, setMsgs] = useState<Msg[]>([]), [text, setText] = useState(""), [busy, setBusy] = useState(false);
   const [expert, setExpert] = useState(""), [wa, setWa] = useState(false), [error, setError] = useState("");
+  const [typing, setTyping] = useState<string | null>(null), [follow, setFollow] = useState<string[]>([]);
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!data) return;
-    const hello = data.intakeQuestion ? [{ id: "q", role: "bot", expert: "mwalimu", body: `${T(WELCOME)}\n\n${data.intakeQuestion}` }] : [];
+    const hello = data.intakeQuestion ? [{ id: "q", role: "bot", expert: "mzee", body: `${T(WELCOME)}\n\n${data.intakeQuestion}`, asks: me?.intakeStep ?? 0 }] : [];
+    setFollow(data.starters ?? []);
     const open = !data.messages.length && !hello.length ? [{ id: "q", role: "bot", expert: "mwalimu", body: L("Karibu. Uliza swali lolote kuhusu kaboni, ardhi, mikataba au mgao wa mapato.", "Welcome. Ask anything about carbon, land, contracts or benefit sharing.") }] : [];
     setMsgs([...data.messages, ...hello, ...open]);
   }, [data]);
-  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [msgs, busy]);
+  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [msgs, busy, typing]);
 
   const send = async (body: string, mode = "ask") => {
     if (!body.trim() || busy) return;
@@ -59,8 +62,15 @@ export function Chat() {
     setMsgs((m) => [...m, { id: `u${Date.now()}`, role: "user", body }]);
     try {
       const r = await api("/chat", { body: { text: body, mode, expert } });
-      setMsgs((m) => [...m, { id: r.id, role: "bot", expert: r.expert, body: r.body, source: r.source, pic: r.pic }]);
       if (audioOn()) play(r.body, lang);
+      // Specialists answer one after another, so a council reply reads like a conversation.
+      for (const [i, x] of (r.replies as Msg[]).entries()) {
+        setTyping(x.expert ?? null);
+        await wait(i === 0 ? 450 : 900);
+        setMsgs((m) => [...m, { ...x, id: String(x.id), role: "bot" }]);
+      }
+      setTyping(null);
+      setFollow(r.followups ?? []);
       if (me && r.intakeStep !== me.intakeStep && r.intakeStep >= me.intakeTotal) refresh();
     } catch (x: any) {
       setError(x.message === "rate" ? L("Maswali mengi kwa saa hii. Pumzika kidogo.", "Too many messages this hour. Take a short break.") : L("Ujumbe haukutumwa. Angalia mtandao.", "Message not sent. Check your connection."));
@@ -75,7 +85,7 @@ export function Chat() {
   if (failed) return <Failed retry={reload} />;
   if (!data) return <Loading />;
   const lastUser = [...msgs].reverse().find((m) => m.role === "user")?.body ?? "";
-  const listening = (me?.intakeStep ?? 0) < (me?.intakeTotal ?? 5);
+  const pending = [...msgs].reverse().find((m) => m.role === "bot")?.asks != null;
   return (
     <div className="chat">
       <section className="council card" aria-label={L("Baraza la wataalamu", "Council of experts")}>
@@ -93,7 +103,7 @@ export function Chat() {
         <div className="messages" aria-live="polite">
           {msgs.map((m) => (
             <div key={m.id} className={`bubble ${m.role === "user" ? "mine" : ""}`}>
-              {m.role !== "user" && m.expert && <small className="who">{T(expertById(m.expert).name)}</small>}
+              {m.role !== "user" && m.expert && <small className="who"><Person look={SEAT_LOOK[m.expert] ?? "elder"} size={22} /> {T(expertById(m.expert).name)}</small>}
               <p>{m.body}</p>
               {m.pic && <Picture id={m.pic} />}
               {m.source && <small className="src">{L("Chanzo", "Source")}: {m.source}</small>}
@@ -103,15 +113,16 @@ export function Chat() {
               )}
             </div>
           ))}
-          {busy && <div className="bubble" role="status"><p>{L("Baraza linajadili...", "The council is thinking...")}</p></div>}
+          {busy && <div className="bubble typing" role="status">{typing ? <><Person look={SEAT_LOOK[typing] ?? "elder"} size={22} /> {L(`${T(expertById(typing).name)} anaandika`, `${T(expertById(typing).name)} is typing`)}</> : L("Baraza linajadili...", "The council is thinking...")}<span className="dots"><i /><i /><i /></span></div>}
           <div ref={end} />
         </div>
         {error && <p className="error pad-x" role="alert">{error}</p>}
-        {!listening && (
-          <div className="chips">
-            <button onClick={() => send(lastUser || L("mkopo wa kaboni", "carbon credit"), "analogy")}><Lightbulb size={15} aria-hidden /> {L("Nipe mfano", "Give an analogy")}</button>
-            <button onClick={() => send(lastUser || L("mkopo wa kaboni", "carbon credit"), "game")}><Puzzle size={15} aria-hidden /> {L("Nipe mchezo", "Give a game")}</button>
-            <button onClick={() => send(L("Mgao wa mapato unahesabiwaje?", "How is the community share calculated?"))}><Sparkles size={15} aria-hidden /> {L("Mgao unahesabiwaje?", "How is the share worked out?")}</button>
+        {!busy && (
+          <div className="chips" aria-label={L("Mapendekezo", "Suggestions")}>
+            {pending && <button className="skip" onClick={() => send("RUKA")}>{L("Ruka swali hili", "Skip this question")}</button>}
+            {follow.map((f) => <button key={f} onClick={() => send(f)}><Sparkles size={15} aria-hidden /> {f}</button>)}
+            {lastUser && <button onClick={() => send(lastUser, "analogy")}><Lightbulb size={15} aria-hidden /> {L("Nipe mfano", "Give an analogy")}</button>}
+            {lastUser && <button onClick={() => send(lastUser, "game")}><Puzzle size={15} aria-hidden /> {L("Nipe mchezo", "Give a game")}</button>}
           </div>
         )}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); send(text); }}>

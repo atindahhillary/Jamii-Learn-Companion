@@ -1,20 +1,11 @@
 import { GLOSSARY, INTAKE, MUST_HAVES, RED_FLAGS, type Audience, type Lang } from "./content.js";
-import { CARDS, MODULES, type Card } from "./curriculum.js";
+import { findCard } from "./council.js";
+import { MODULES } from "./curriculum.js";
 
 export type Mode = "ask" | "analogy" | "game";
 export type Learner = { lang: Lang; audience: Audience; intake_step: number };
 
 const levelFor = (a: Audience) => (a === "leader" || a === "trainer" ? "detail" : "simple") as "detail" | "simple";
-
-function findCard(text: string): Card | null {
-  const t = text.toLowerCase();
-  let best: Card | null = null, top = 0;
-  for (const c of CARDS) {
-    const score = c.words.filter((w) => t.includes(w)).length;
-    if (score > top) { best = c; top = score; }
-  }
-  return best;
-}
 
 const FOOT = { sw: "Hakiki na mtu unayemwamini kabla ya kuamua.", en: "Check with someone you trust before deciding." };
 const NO_CARD = {
@@ -32,12 +23,7 @@ export function offlineAnswer(text: string, u: Learner, mode: Mode) {
   return { body: `${main}${game}\n\n${FOOT[u.lang]}`, source: c.source, pic: MODULES.find((m) => m.theme === c.theme)?.id ?? null };
 }
 
-export const intakeQuestion = (u: Learner) => {
-  const i = INTAKE[u.intake_step];
-  if (!i) return null;
-  const hint = u.lang === "sw" ? `(Swali ${u.intake_step + 1} kati ya ${INTAKE.length}. Andika RUKA kuruka.)` : `(Question ${u.intake_step + 1} of ${INTAKE.length}. Type SKIP to skip.)`;
-  return `${i.q[u.lang]}\n\n${hint}`;
-};
+export const intakeQuestion = (u: Learner) => INTAKE[u.intake_step]?.q[u.lang] ?? null;
 
 export const intakeDone = {
   sw: "Asante sana kwa kushiriki. Sauti yako sasa ni sehemu ya mpango wa mafunzo ya jamii yako. Unaweza kuniuliza chochote, au uanze somo la kwanza.",

@@ -1,11 +1,12 @@
 // Public demo: answers every /api path in the browser, so nothing leaves the visitor's device.
-import { AUDIENCES, INTAKE, THEMES, routeExpert, expertById, type Audience, type Lang, type Theme } from "../shared/content";
+import { AUDIENCES, INTAKE, THEMES, type Audience, type Lang, type Theme } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
-import { glossaryFor, intakeDone, intakeQuestion, offlineAnswer, reviewRules, type Mode } from "../shared/answers";
+import { glossaryFor, intakeQuestion, offlineAnswer, reviewRules } from "../shared/answers";
+import { STARTERS, converse, type Mode } from "../shared/council";
 import { BOT_POST, CIRCLES, FIRST_POST, NAMES, SAYINGS } from "../shared/demo-data";
 import { MIN_GROUP, buildCurriculum, classify, gapScores, type Kind } from "../server/analyze";
 
-type Msg = { id: number; role: string; expert?: string; body: string; source?: string | null; flagged?: boolean; resolved?: boolean; at: number };
+type Msg = { id: number; role: string; expert?: string; body: string; source?: string | null; pic?: string | null; asks?: number | null; flagged?: boolean; resolved?: boolean; at: number };
 type Insight = { body: string; theme: Theme; kind: Kind; sentiment: number; at: number };
 type Post = { id: number; circle: number; author: string; is_bot: boolean; body: string; hidden?: boolean };
 type Work = { id: number; module_id: string; body: string; feedback: string | null; name: string; mine?: boolean };
@@ -107,23 +108,16 @@ const scrub = (t: string) => t.replace(/(?:\+?254|\b0)[17]\d{8}\b/g, "[nambari y
 
 function chat(s: State, text: string, mode: Mode, expertId: string, skipIntake = false) {
   const u = { lang: s.lang, audience: s.audience, intake_step: stepOf(s) };
-  const add = (m: Omit<Msg, "id" | "at">) => { const x = { ...m, id: s.nextId++, at: Date.now() }; s.messages.push(x); return x; };
-  const keep = (t: string, hint?: Theme) => s.insights.push({ ...classify(t, hint), body: t, at: Date.now() });
+  const lastBot = [...s.messages].reverse().find((m) => m.role === "bot");
+  const pending = skipIntake || s.role === "admin" ? null : lastBot ? lastBot.asks ?? null : u.intake_step < INTAKE.length ? u.intake_step : null;
   const clean = scrub(text);
-  add({ role: "user", body: clean });
-  if (!skipIntake && stepOf(s) < INTAKE.length) {
-    const cur = INTAKE[s.intakeStep];
-    if (!/^(ruka|skip)$/i.test(clean.trim())) keep(clean, cur.theme);
-    s.intakeStep += 1;
-    const body = intakeQuestion({ ...u, intake_step: s.intakeStep }) ?? intakeDone[s.lang];
-    const m = add({ role: "bot", expert: "mwalimu", body });
-    return { id: m.id, body, expert: "mwalimu", source: null, intakeStep: s.intakeStep };
-  }
-  keep(clean);
-  const expert = expertId ? expertById(expertId) : mode === "ask" ? routeExpert(clean) : expertById("mwalimu");
-  const a = offlineAnswer(clean, u, mode);
-  const m = add({ role: "bot", expert: expert.id, body: a.body, source: a.source });
-  return { id: m.id, body: a.body, expert: expert.id, source: a.source, pic: a.pic, intakeStep: stepOf(s) };
+  s.messages.push({ id: s.nextId++, role: "user", body: clean, at: Date.now() });
+  const turn = converse(clean, u, { mode, expertId: expertId || undefined, pending, n: s.messages.length, listen: !skipIntake && s.role !== "admin" });
+  if (turn.answered != null) s.intakeStep = Math.max(s.intakeStep, turn.answered + 1);
+  s.insights.push({ ...classify(clean, turn.answered != null ? INTAKE[turn.answered].theme : undefined), body: clean, at: Date.now() });
+  const replies = turn.replies.map((r) => { const m = { ...r, id: s.nextId++, role: "bot", at: Date.now() }; s.messages.push(m); return m; });
+  const main = replies.find((r) => r.source) ?? replies[0];
+  return { replies, followups: turn.followups, intakeStep: stepOf(s), id: main?.id, body: replies.map((r) => r.body).join("\n\n"), expert: main?.expert, source: main?.source ?? null, pic: replies.find((r) => r.pic)?.pic ?? null };
 }
 
 export async function demoApi(path: string, method: string, b: any): Promise<any> {
@@ -142,7 +136,7 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
   }
   if (path === "/me/export") return { profile: { name: s.name, lang: s.lang, audience: s.audience }, messages: s.messages, insights: s.insights, progress: s.progress };
   if (path === "/me" && method === "DELETE") { memory = fresh(); try { localStorage.removeItem(KEY); } catch { /* nothing stored */ } return { ok: true }; }
-  if (path === "/chat" && method === "GET") return { messages: s.messages.slice(-60).map((m) => ({ ...m })), intakeQuestion: s.messages.length ? null : intakeQuestion({ lang: s.lang, audience: s.audience, intake_step: stepOf(s) }) };
+  if (path === "/chat" && method === "GET") return { messages: s.messages.slice(-60).map((m) => ({ ...m })), intakeQuestion: s.messages.length ? null : intakeQuestion({ lang: s.lang, audience: s.audience, intake_step: stepOf(s) }), starters: STARTERS.map((x) => x[s.lang]) };
   if (path === "/chat") return done(chat(s, String(b.text).slice(0, 1500), b.mode ?? "ask", b.expert ?? ""));
   if (path === "/chat/flag") { const m = s.messages.find((x) => x.id === Number(b.id)); if (m) m.flagged = true; return done({ ok: true }); }
   if (path === "/learn") return learnerView(s);

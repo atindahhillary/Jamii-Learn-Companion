@@ -19,6 +19,54 @@ async function register(extra: object = {}) {
   return { cookie: r.headers.get("set-cookie")!.split(";")[0], phone };
 }
 
+describe("council conversation", () => {
+  const u = { lang: "sw" as const, audience: "herder" as const, intake_step: 5 };
+  it("answers with several voices and suggests follow-ups", async () => {
+    const { converse } = await import("../shared/council.js");
+    const t = converse("Mgao wa mapato ni asilimia ngapi?", u, { pending: null, n: 0 });
+    expect(t.replies[0].expert).toBe("mchambuzi");
+    expect(t.replies[0].body).toContain("40%");
+    expect(new Set(t.replies.map((r) => r.expert)).size).toBeGreaterThanOrEqual(2);
+    expect(t.followups).toHaveLength(3);
+  });
+  it("varies how a specialist opens", async () => {
+    const { converse } = await import("../shared/council.js");
+    const a = converse("CDA ni nini?", u, { pending: null, n: 0 }).replies[0].body, b = converse("CDA ni nini?", u, { pending: null, n: 1 }).replies[0].body;
+    expect(a).not.toBe(b);
+  });
+  it("reacts to a shared worry and weaves in the next listening question", async () => {
+    const { converse, REACT } = await import("../shared/council.js");
+    const t = converse("Nina wasiwasi pesa hazitafika kwa wote", { ...u, intake_step: 0 }, { pending: 0, n: 0 });
+    expect(t.answered).toBe(0);
+    expect(REACT.concern.map((x) => x.sw)).toContain(t.replies[0].body);
+    expect(t.replies.at(-1)!.asks).toBe(1);
+  });
+  it("answers a question asked instead of a listening answer", async () => {
+    const { converse } = await import("../shared/council.js");
+    const t = converse("Je, tunaweza kusema hapana?", { ...u, intake_step: 2 }, { pending: 2, n: 0 });
+    expect(t.answered).toBe(2);
+    expect(t.replies.some((r) => r.body.includes("kusema hapana"))).toBe(true);
+  });
+  it("lets one chosen specialist speak alone", async () => {
+    const { converse } = await import("../shared/council.js");
+    const t = converse("Ridhaa ni nini?", u, { pending: null, n: 0, expertId: "wakili" });
+    expect(t.replies.every((r) => r.expert === "wakili")).toBe(true);
+  });
+  it("finds the new topics and every suggested question has an answer", async () => {
+    const { findCard, FOLLOW, STARTERS } = await import("../shared/council.js");
+    for (const [q, id] of [["Who buys carbon credits?", "buyers"], ["Nani hununua mikopo ya kaboni?", "buyers"], ["Malalamiko yanapelekwa wapi?", "grievance"], ["Can we say no?", "sayno"], ["How long does a project last?", "duration"], ["Wanawake na vijana wanapata nini?", "inclusion"]]) expect(findCard(q)?.id).toBe(id);
+    for (const f of [...Object.values(FOLLOW).flat(), ...STARTERS]) for (const l of ["sw", "en"] as const) expect(findCard(f[l]), f[l]).not.toBeNull();
+  });
+  it("sends several voices through the server and remembers the pending question", async () => {
+    const { cookie } = await register();
+    const first = await (await post("/chat", { text: "Wazee wetu hupumzisha malisho kwa desturi" }, cookie)).json();
+    expect(first.replies.at(-1).asks).toBe(1);
+    const second = await (await post("/chat", { text: "Mgao wa mapato ni asilimia ngapi?" }, cookie)).json();
+    expect(second.intakeStep).toBe(2);
+    expect(second.replies.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("audio and assignments", () => {
   it("keys and splits text for recordings", async () => {
     const { audioKey, segments } = await import("../shared/audio-key.js");

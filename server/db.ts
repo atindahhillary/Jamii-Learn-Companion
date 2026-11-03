@@ -34,6 +34,7 @@ create table if not exists wa_links (code_hash text primary key, user_id uuid no
 create table if not exists wa_seen (id text primary key, at timestamptz not null default now());
 create table if not exists rate (key text primary key, count int not null, window_start timestamptz not null);
 create table if not exists audit (id bigserial primary key, actor uuid, action text not null, detail text, at timestamptz not null default now());
+alter table messages add column if not exists asks int;
 create index if not exists messages_user on messages(user_id, id);
 create index if not exists insights_comm on insights(community_id);
 create index if not exists posts_circle on posts(circle_id, id);
