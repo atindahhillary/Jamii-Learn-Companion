@@ -118,7 +118,7 @@ export function Profile() {
       </section>
       <section className="card stack">
         <h2>{L("Faragha yangu", "My privacy")}</h2>
-        {!DEMO && <label className="check"><input type="checkbox" checked={me!.consentAi} onChange={(e) => update({ consentAi: e.target.checked })} /> <span>{L("Tuma maswali kwa modeli ya AI ninayochagua kwenye Msaidizi (huduma iko nje ya Kenya)", "Send questions to the AI model I choose in the Assistant (the service is outside Kenya)")}</span></label>}
+        {<label className="check"><input type="checkbox" checked={me!.consentAi} onChange={(e) => update({ consentAi: e.target.checked })} /> <span>{L("Tuma maswali kwa modeli ya AI ninayochagua kwenye Msaidizi (huduma iko nje ya Kenya)", "Send questions to the AI model I choose in the Assistant (the service is outside Kenya)")}</span></label>}
         <label className="check"><input type="checkbox" checked={me!.consentShare} onChange={(e) => update({ consentShare: e.target.checked })} /> <span>{L("Maneno yangu yanukuliwe bila jina katika ripoti", "Quote my words without my name in reports")}</span></label>
         {msg && <p className="muted small" role="status">{msg}</p>}
         <div className="row">

@@ -75,10 +75,14 @@ function ModelPicker() {
           {MODELS_AI.map((m) => <option key={m.id} value={m.id}>{m.name}{m.maker !== m.name ? ` (${m.maker})` : ""}{me?.models?.find((x) => x.id === m.id)?.ready ? "" : L(" · haijaunganishwa", " · not connected")}</option>)}
         </select>
       </label>
-      <small className="muted">{DEMO || !ready
+      {ready && <label className="check small consent">
+        <input type="checkbox" checked={!!me?.consentAi} disabled={busy} onChange={async (e) => { setBusy(true); await api("/me", { method: "PATCH", body: { consentAi: e.target.checked } }).catch(() => undefined); await refresh(); setBusy(false); }} />
+        <span>{L(`Tuma maswali yangu kwa ${cur.maker} (${T(cur.where)}). Usiandike majina, simu au vitambulisho.`, `Send my questions to ${cur.maker} (${T(cur.where)}). Do not type names, phone or ID numbers.`)}</span>
+      </label>}
+      <small className="muted">{!ready
         ? L(`${cur.name} haijaunganishwa hapa, kwa hiyo unapata majibu yaliyoandaliwa yenye vyanzo.`, `${cur.name} is not connected here, so you get prepared, sourced answers.`)
-        : !me?.consentAi ? L("Washa AI kwenye Wasifu ili maswali yatumwe kwa modeli hii.", "Turn on AI in Profile to send questions to this model.")
-        : L(`Maswali yanatumwa kwa ${cur.maker} (${T(cur.where)}). Sheria zilezile na vyanzo vilevile.`, `Questions go to ${cur.maker} (${T(cur.where)}). Same rules and sources.`)}
+        : !me?.consentAi ? L("Bila ruhusa hii, unapata majibu yaliyoandaliwa yenye vyanzo.", "Without this, you get prepared, sourced answers.")
+        : L(`${cur.name} inaandika jibu kutoka kwenye maelezo yenye vyanzo. Sheria zilezile kwa kila modeli.`, `${cur.name} writes the answer from the sourced notes. Same rules for every model.`)}
         {cur.id === "deepseek" && L(" Data inachakatwa China: hakikisha inaruhusiwa chini ya Sheria ya Ulinzi wa Data ya Kenya.", " Data is processed in China: check this is allowed under Kenya's Data Protection Act.")}</small>
     </div>
   );

@@ -441,3 +441,28 @@ describe("choice of AI model", () => {
     expect((await (await get("/chat", cookie)).json()).messages.at(-1).model).toBe("chatgpt");
   });
 });
+
+describe("live AI for the public demo", () => {
+  it("answers through the chosen model without a database, safely and with limits", async () => {
+    const ai = await import("../api/ai.js");
+    const req = (body: object, headers: Record<string, string> = { "x-ky": "1", "x-forwarded-for": "9.9.9.9" }) => new Request("https://x/api/ai", { method: "POST", headers: { "content-type": "application/json", host: "x", ...headers }, body: JSON.stringify(body) });
+    expect((await (await ai.GET()).json()).models.every((m: any) => !m.ready)).toBe(true);
+    expect((await ai.POST(req({ text: "hi", model: "chatgpt" }, {}))).status).toBe(403);
+    expect((await (await ai.POST(req({ text: "CDA ni nini?", model: "chatgpt" }))).json()).text).toBeNull(); // not set up
+    process.env.OPENAI_API_KEY = "test"; process.env.OPENAI_MODEL = "m";
+    const real = globalThis.fetch; let sent: any = null;
+    globalThis.fetch = (async (url: any, init: any) => { sent = JSON.parse(init.body); return new Response(JSON.stringify({ choices: [{ message: { content: "Jibu jipya" } }] })); }) as typeof fetch;
+    try {
+      const r = await (await ai.POST(req({ text: "Mgao ni nini? simu yangu 0712345678", model: "chatgpt", lang: "sw", draft: "Angalau 40% baada ya gharama.", history: [{ role: "bot", body: "hello" }, { role: "user", body: "swali" }] }))).json();
+      expect(r).toEqual({ text: "Jibu jipya", model: "chatgpt" });
+      const last = sent.messages.at(-1).content;
+      expect(last).toContain("<prepared_answer>Angalau 40%");
+      expect(last).not.toContain("0712345678");
+      expect(sent.messages[1].role).toBe("user"); // history starts with the user
+      expect(sent.messages[0].content).toContain("Never tell anyone to sign");
+      let status = 200;
+      for (let i = 0; i < 40 && status === 200; i++) status = (await ai.POST(req({ text: "q", model: "chatgpt" }))).status;
+      expect(status).toBe(429);
+    } finally { globalThis.fetch = real; delete process.env.OPENAI_API_KEY; delete process.env.OPENAI_MODEL; }
+  });
+});

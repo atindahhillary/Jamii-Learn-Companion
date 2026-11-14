@@ -9,19 +9,19 @@ import { STARTERS, converse, type Mode } from "../shared/council";
 import { BOT_POST, CIRCLES, FIRST_POST, NAMES, SAYINGS } from "../shared/demo-data";
 import { MIN_GROUP, buildCurriculum, classify, gapScores, type Kind } from "../server/analyze";
 
-type Msg = { id: number; session?: number; role: string; expert?: string; body: string; source?: string | null; pic?: string | null; asks?: number | null; flagged?: boolean; resolved?: boolean; at: number };
+type Msg = { id: number; session?: number; model?: string | null; role: string; expert?: string; body: string; source?: string | null; pic?: string | null; asks?: number | null; flagged?: boolean; resolved?: boolean; at: number };
 type Insight = { body: string; theme: Theme; kind: Kind; sentiment: number; at: number };
 type Post = { id: number; circle: number; author: string; is_bot: boolean; body: string; hidden?: boolean };
 type Work = { id: number; module_id: string; body: string; feedback: string | null; name: string; mine?: boolean };
 type State = {
-  role: "learner" | "admin" | null; name: string; lang: Lang; audience: Audience; consentShare: boolean; intakeStep: number;
+  role: "learner" | "admin" | null; name: string; lang: Lang; audience: Audience; consentShare: boolean; consentAi: boolean; intakeStep: number;
   messages: Msg[]; insights: Insight[]; progress: Record<string, { score: number; at: number }>; posts: Post[]; nextId: number; work: Work[];
   goal: Goal | null; groups: Group[]; games: Game[]; session: number; aiModel: string;
 };
 
 const KEY = "jlc-demo", DAY = 86400_000;
 const fresh = (): State => ({
-  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000, goal: null, groups: [], games: [], session: 0, aiModel: "claude",
+  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000, goal: null, groups: [], games: [], session: 0, aiModel: "claude", consentAi: false,
   work: [
     { id: 1, module_id: "m2", name: "Nasieku L.", feedback: null, body: "Nilimuuliza bibi yangu. Zamani eneo la juu lilipumzishwa wakati wa mvua. Sasa mifugo imeongezeka na eneo hilo halipumziki." },
     { id: 2, module_id: "m6", name: "Lekishon M.", feedback: null, body: "Nilipata 1.6m na 4m. Tofauti ni kubwa, kwa hiyo tutauliza orodha ya gharama kwenye mkutano." },
@@ -129,6 +129,33 @@ function chat(s: State, text: string, mode: Mode, skipIntake = false) {
   return { replies, followups: turn.followups, intakeStep: stepOf(s), id: main?.id, body: replies.map((r) => r.body).join("\n\n"), expert: main?.expert, source: main?.source ?? null, pic: replies.find((r) => r.pic)?.pic ?? null };
 }
 
+// Which models the site's server has keys for. Asked once per visit; no server means none.
+let ready: Promise<{ id: string; ready: boolean }[]> | null = null;
+const readiness = (): Promise<{ id: string; ready: boolean }[]> => (ready ??= fetch("/api/ai").then((r) => (r.ok ? r.json() : null)).then((j) => j?.models ?? null).catch(() => null)
+  .then((m) => m ?? MODELS_AI.map((x) => ({ id: x.id, ready: false }))));
+
+// With consent, the chosen model rewrites the prepared, sourced answer. Only this question, a little recent chat
+// and the prepared answer leave the device; on any failure the prepared answer stays.
+async function liveAi(s: State, r: ReturnType<typeof chat>, text: string, mode: Mode) {
+  const reply = r.replies[0];
+  if (!s.consentAi || !reply || (!reply.source && !/\?/.test(text))) return r;
+  if (!(await readiness()).find((m) => m.id === s.aiModel)?.ready) return r;
+  const paras = reply.body.split("\n\n"), tail = reply.asks != null ? paras.slice(-2).join("\n\n") : "";
+  const draft = reply.asks != null ? paras.slice(0, -2).join("\n\n") : reply.body;
+  const history = s.messages.filter((m) => m.id < reply.id - 1).slice(-6).map((m) => ({ role: m.role, body: m.body }));
+  try {
+    const res = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json", "x-ky": "1" }, body: JSON.stringify({ model: s.aiModel, text: scrub(text), mode, lang: s.lang, audience: s.audience, draft, history }) });
+    const j = res.ok ? await res.json() : null;
+    if (!j?.text) return r;
+    const body = tail ? `${j.text}\n\n${tail}` : j.text;
+    const saved = s.messages.find((m) => m.id === reply.id);
+    if (saved) Object.assign(saved, { body, model: j.model });
+    Object.assign(reply, { body, model: j.model });
+    save();
+    return { ...r, body };
+  } catch { return r; }
+}
+
 export async function demoApi(path: string, method: string, b: any): Promise<any> {
   const s = load(), fail = (error: string, status: number) => Object.assign(new Error(error), { status });
   const done = <R,>(r: R) => { save(); return r; };
@@ -136,11 +163,12 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
   if (!s.role) throw fail("auth", 401);
   const admin = s.role === "admin";
 
-  if (path === "/me" && method === "GET") return { id: "demo", name: s.name, role: s.role, lang: s.lang, audience: s.audience, village: null, consentAi: false, consentShare: s.consentShare, aiModel: s.aiModel, models: MODELS_AI.map((m) => ({ id: m.id, ready: false })), intakeStep: stepOf(s), intakeTotal: INTAKE.length, phone: "", community: admin ? null : { name: "Jamii ya Mfano A", county: "Kajiado" }, whatsapp: false };
+  if (path === "/me" && method === "GET") return { id: "demo", name: s.name, role: s.role, lang: s.lang, audience: s.audience, village: null, consentAi: s.consentAi, consentShare: s.consentShare, aiModel: s.aiModel, models: await readiness(), intakeStep: stepOf(s), intakeTotal: INTAKE.length, phone: "", community: admin ? null : { name: "Jamii ya Mfano A", county: "Kajiado" }, whatsapp: false };
   if (path === "/me" && method === "PATCH") {
     if (b.lang) s.lang = b.lang;
     if (b.audience in AUDIENCES) s.audience = b.audience;
     if (typeof b.consentShare === "boolean") s.consentShare = b.consentShare;
+    if (typeof b.consentAi === "boolean") s.consentAi = b.consentAi;
     if (isModel(b.aiModel)) s.aiModel = b.aiModel;
     return done({ ok: true });
   }
@@ -154,7 +182,7 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     for (const m of s.messages) by.set(m.session ?? 0, [...(by.get(m.session ?? 0) ?? []), m]);
     return [...by.entries()].reverse().map(([session, m]) => ({ session, started: new Date(m[0].at).toISOString(), messages: m.map((x) => ({ role: x.role, body: x.body, at: new Date(x.at).toISOString() })) }));
   }
-  if (path === "/chat") return done(chat(s, String(b.text).slice(0, 1500), b.mode ?? "ask"));
+  if (path === "/chat") { const r = chat(s, String(b.text).slice(0, 1500), b.mode ?? "ask"); save(); return done(await liveAi(s, r, String(b.text).slice(0, 1500), b.mode ?? "ask")); }
   if (path === "/chat/flag") { const m = s.messages.find((x) => x.id === Number(b.id)); if (m) m.flagged = true; return done({ ok: true }); }
   if (path === "/learn") return learnerView(s);
   if (path === "/learn/quiz") {

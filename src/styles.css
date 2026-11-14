@@ -291,3 +291,4 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 6px; }
 .model-row small { font-size: .74rem; line-height: 1.3; }
 .who .by { font-weight: 400; color: var(--muted); }
 @media (max-width: 860px) { .model-row { padding: 6px 10px 2px; } .model-row small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } }
+.model-row .consent { font-size: .76rem; font-weight: 400; align-items: flex-start; } .model-row .consent input { margin-top: 2px; }
