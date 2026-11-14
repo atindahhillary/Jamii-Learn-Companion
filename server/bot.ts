@@ -18,6 +18,7 @@ export type { Mode };
 // and any failure falls back to the prepared, sourced answer.
 async function askAI(u: BotUser, system: string, messages: ChatMsg[], maxTokens = 700, task: Task = "answer"): Promise<{ text: string; model: ModelId } | null> {
   const model: ModelId = isModel(u.ai_model) ? u.ai_model : DEFAULT_MODEL;
+  if (model === "prepared") return null;
   const budget = Number(process.env.MAX_AI_PER_DAY || 2000);
   if (await limited(`ai:${new Date().toISOString().slice(0, 10)}`, budget, 86400)) return null;
   const text = await callModel(model, system, messages, maxTokens, task);

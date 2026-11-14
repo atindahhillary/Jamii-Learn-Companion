@@ -18,6 +18,7 @@ export type ChatMsg = { role: "user" | "assistant"; content: string };
 // Set up = it has a key and a model name (and, for ClimateGPT, an address). Claude is checked in bot.ts.
 export function configured(id: ModelId): boolean {
   const e = modelInfo(id).env;
+  if (id === "prepared") return false; // not a model: the prepared answer is already there
   if (id === "claude") return !!process.env[e.key];
   return !!(process.env[e.key] && process.env[e.model] && (BASES[id] || (e.base && process.env[e.base])));
 }

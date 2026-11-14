@@ -224,7 +224,8 @@ export function converse(text: string, u: Learner, opt: { mode?: Mode; pending: 
     theme = card.theme; source = card.source; pic = picFor(card);
     const lead = mode !== "ask" ? "mwalimu" : routeExpert(t).id === "mzee" ? "mzee" : MODULES_THEME_EXPERT.expert[card.theme];
     // One loose word ("price" in a question about maize) gets the carbon answer, but says so.
-    const loose = card.words.filter((x) => w.includes(x)).length === 1 && !starts(w, CORE);
+    const hit = card.words.filter((x) => w.includes(x));
+    const loose = hit.length === 1 && !hit[0].includes(" ") && !starts(w, CORE);
     if (loose) parts.push(L === "sw" ? "Nikielewa kuwa unauliza kuhusu miradi ya kaboni:" : "If you are asking about carbon projects:");
     parts.push(pick(OPENERS[lead], mix)[L], mode === "ask" ? card[levelFor(u.audience)][L] : card.analogy[L]);
     if (mode === "game") parts.push(GAME[L]);

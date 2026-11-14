@@ -64,6 +64,7 @@ describe("council conversation", () => {
     expect(sign).toMatch(/cannot tell you to sign|not for an AI/);
     expect(sign).not.toMatch(/you should sign|go ahead and sign/i);
     expect(converse("What is the price of maize?", en, { pending: null, n: 0 }).replies[0].body).toContain("If you are asking about carbon");
+    expect(converse("Can we say no?", en, { pending: null, n: 0 }).replies[0].body).not.toContain("If you are asking about carbon");
     expect(converse("tree planting is good", en, { pending: null, n: 0 }).replies[0].body).not.toContain("Help me get started");
   });
   it("words the same question differently from turn to turn", async () => {
@@ -415,7 +416,7 @@ describe("choice of AI model", () => {
   it("lets a learner pick a model, uses it when set up, and falls back to prepared answers otherwise", async () => {
     const { cookie } = await register();
     await app.request("/api/me", { method: "PATCH", headers: { ...H, cookie }, body: JSON.stringify({ aiModel: "not-a-model", consentAi: true }) });
-    expect((await (await get("/me", cookie)).json()).aiModel).toBe("claude");
+    expect((await (await get("/me", cookie)).json()).aiModel).toBe("prepared"); // free default; a bad value is ignored
     await app.request("/api/me", { method: "PATCH", headers: { ...H, cookie }, body: JSON.stringify({ aiModel: "chatgpt" }) });
     const me = await (await get("/me", cookie)).json();
     expect(me.aiModel).toBe("chatgpt");

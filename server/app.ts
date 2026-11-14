@@ -46,7 +46,7 @@ const admin = async (c: Context<Env>, next: () => Promise<void>) => {
   if (c.get("user").role !== "admin") { await audit(c.get("user").id, "admin_denied", c.req.path); return c.json({ error: "forbidden" }, 403); }
   await next();
 };
-const publicUser = (u: User) => ({ id: u.id, name: u.name, role: u.role, lang: u.lang, audience: u.audience, village: u.village, consentAi: u.consent_ai, consentShare: u.consent_share, aiModel: u.ai_model ?? "claude", intakeStep: u.intake_step, intakeTotal: INTAKE.length, phone: maskPhone(decrypt(u.phone_enc)) });
+const publicUser = (u: User) => ({ id: u.id, name: u.name, role: u.role, lang: u.lang, audience: u.audience, village: u.village, consentAi: u.consent_ai, consentShare: u.consent_share, aiModel: u.ai_model ?? "prepared", intakeStep: u.intake_step, intakeTotal: INTAKE.length, phone: maskPhone(decrypt(u.phone_enc)) });
 
 async function communityId(name: string, county: string) {
   if (!name || !county) return null;

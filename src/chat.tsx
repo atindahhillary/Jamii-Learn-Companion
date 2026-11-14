@@ -67,19 +67,19 @@ function ModelPicker() {
   const { me, refresh } = useApp();
   const L = useL(), T = useT();
   const [busy, setBusy] = useState(false);
-  const cur = modelInfo(me?.aiModel ?? "claude"), ready = me?.models?.find((m) => m.id === cur.id)?.ready;
+  const cur = modelInfo(me?.aiModel ?? "prepared"), free = cur.id === "prepared", ready = me?.models?.find((m) => m.id === cur.id)?.ready;
   return (
     <div className="model-row">
       <label>{L("Jibu kwa", "Answer with")}
         <select value={cur.id} disabled={busy} onChange={async (e) => { setBusy(true); await api("/me", { method: "PATCH", body: { aiModel: e.target.value } }).catch(() => undefined); await refresh(); setBusy(false); }}>
-          {MODELS_AI.map((m) => <option key={m.id} value={m.id}>{m.name}{m.maker !== m.name ? ` (${m.maker})` : ""}{me?.models?.find((x) => x.id === m.id)?.ready ? "" : L(" · haijaunganishwa", " · not connected")}</option>)}
+          {MODELS_AI.map((m) => <option key={m.id} value={m.id}>{m.id === "prepared" ? L("Jamii (majibu yaliyoandaliwa, bure)", "Jamii (prepared answers, free)") : `${m.name}${m.maker !== m.name ? ` (${m.maker})` : ""}${me?.models?.find((x) => x.id === m.id)?.ready ? "" : L(" · haijaunganishwa", " · not connected")}`}</option>)}
         </select>
       </label>
       {ready && <label className="check small consent">
         <input type="checkbox" checked={!!me?.consentAi} disabled={busy} onChange={async (e) => { setBusy(true); await api("/me", { method: "PATCH", body: { consentAi: e.target.checked } }).catch(() => undefined); await refresh(); setBusy(false); }} />
         <span>{L(`Tuma maswali yangu kwa ${cur.maker} (${T(cur.where)}). Usiandike majina, simu au vitambulisho.`, `Send my questions to ${cur.maker} (${T(cur.where)}). Do not type names, phone or ID numbers.`)}</span>
       </label>}
-      <small className="muted">{!ready
+      <small className="muted">{free ? L("Bure: majibu yanatoka kwenye maelezo ya programu yenye vyanzo, na hakuna kinachotoka kwenye kifaa chako.", "Free: answers come from the app's own sourced notes, and nothing leaves your device.") : !ready
         ? L(`${cur.name} haijaunganishwa hapa, kwa hiyo unapata majibu yaliyoandaliwa yenye vyanzo.`, `${cur.name} is not connected here, so you get prepared, sourced answers.`)
         : !me?.consentAi ? L("Bila ruhusa hii, unapata majibu yaliyoandaliwa yenye vyanzo.", "Without this, you get prepared, sourced answers.")
         : L(`${cur.name} inaandika jibu kutoka kwenye maelezo yenye vyanzo. Sheria zilezile kwa kila modeli.`, `${cur.name} writes the answer from the sourced notes. Same rules for every model.`)}

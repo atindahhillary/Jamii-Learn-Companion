@@ -21,7 +21,7 @@ type State = {
 
 const KEY = "jlc-demo", DAY = 86400_000;
 const fresh = (): State => ({
-  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000, goal: null, groups: [], games: [], session: 0, aiModel: "claude", consentAi: false,
+  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000, goal: null, groups: [], games: [], session: 0, aiModel: "prepared", consentAi: false,
   work: [
     { id: 1, module_id: "m2", name: "Nasieku L.", feedback: null, body: "Nilimuuliza bibi yangu. Zamani eneo la juu lilipumzishwa wakati wa mvua. Sasa mifugo imeongezeka na eneo hilo halipumziki." },
     { id: 2, module_id: "m6", name: "Lekishon M.", feedback: null, body: "Nilipata 1.6m na 4m. Tofauti ni kubwa, kwa hiyo tutauliza orodha ya gharama kwenye mkutano." },
