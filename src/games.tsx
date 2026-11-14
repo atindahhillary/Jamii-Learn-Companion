@@ -1,9 +1,11 @@
-import { ArrowLeft, Coins, Flag, Shuffle } from "lucide-react";
+import { ArrowLeft, Coins, Flag, Play, Shuffle, Sparkles, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { o, type T } from "../shared/content";
 import { Person } from "./avatars";
 import { Listen } from "./audio";
-import { useL, useT } from "./core";
+import { MODULES } from "../shared/curriculum";
+import type { Game, Question } from "../shared/games";
+import { DEMO, api, useApp, useData, useL, useT } from "./core";
 
 const shuffle = <X,>(a: X[]) => a.map((v) => [Math.random(), v] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
 const best = (id: string) => { try { return Number(localStorage.getItem(`jlc-best-${id}`)) || 0; } catch { return 0; } };
@@ -18,9 +20,10 @@ const PAIRS: [T, T][] = [
   [o("Mgao", "Share"), o("Angalau 40% baada ya gharama", "At least 40% after costs")],
 ];
 
-function Match({ onBack }: { onBack: () => void }) {
-  const L = useL(), T = useT();
-  const cards = useMemo(() => shuffle(PAIRS.flatMap((p, i) => [{ pair: i, text: p[0] }, { pair: i, text: p[1] }])), []);
+// Works for the ready-made words and for any generated game: pairs arrive already in the chosen language.
+function Match({ onBack, pairs, id = "match", title }: { onBack: () => void; pairs: [string, string][]; id?: string; title?: string }) {
+  const L = useL();
+  const cards = useMemo(() => shuffle(pairs.flatMap((p, i) => [{ pair: i, text: p[0] }, { pair: i, text: p[1] }])), [pairs]);
   const [open, setOpen] = useState<number[]>([]), [won, setWon] = useState<number[]>([]), [tries, setTries] = useState(0);
   const pick = (i: number) => {
     if (open.length === 2 || open.includes(i) || won.includes(cards[i].pair)) return;
@@ -30,15 +33,15 @@ function Match({ onBack }: { onBack: () => void }) {
     setTries((t) => t + 1);
     const hit = cards[next[0]].pair === cards[next[1]].pair;
     setTimeout(() => {
-      if (hit) { const w = [...won, cards[i].pair]; setWon(w); if (w.length === PAIRS.length) keepBest("match", Math.max(1, 100 - (tries + 1 - PAIRS.length) * 5)); }
+      if (hit) { const w = [...won, cards[i].pair]; setWon(w); if (w.length === pairs.length) keepBest(id, Math.max(1, 100 - (tries + 1 - pairs.length) * 5)); }
       setOpen([]);
     }, hit ? 350 : 950);
   };
-  return <Frame title={L("Linganisha maneno", "Match the words")} onBack={onBack} host="mwalimu" say={won.length === PAIRS.length ? L(`Hongera! Umemaliza kwa majaribio ${tries}.`, `Well done! You finished in ${tries} tries.`) : L("Fungua kadi mbili zinazoendana.", "Open two cards that belong together.")}>
+  return <Frame title={title ?? L("Linganisha maneno", "Match the words")} onBack={onBack} host="mwalimu" say={won.length === pairs.length ? L(`Hongera! Umemaliza kwa majaribio ${tries}.`, `Well done! You finished in ${tries} tries.`) : L("Fungua kadi mbili zinazoendana.", "Open two cards that belong together.")}>
     <div className="memory">
       {cards.map((c, i) => {
         const up = open.includes(i) || won.includes(c.pair);
-        return <button key={i} className="memo" data-up={up} data-won={won.includes(c.pair)} aria-label={up ? T(c.text) : L(`Kadi ${i + 1}`, `Card ${i + 1}`)} onClick={() => pick(i)}>{up ? T(c.text) : "?"}</button>;
+        return <button key={i} className="memo" data-up={up} data-won={won.includes(c.pair)} aria-label={up ? c.text : L(`Kadi ${i + 1}`, `Card ${i + 1}`)} onClick={() => pick(i)}>{up ? c.text : "?"}</button>;
       })}
     </div>
   </Frame>;
@@ -101,27 +104,102 @@ function Flags({ onBack }: { onBack: () => void }) {
 function Frame({ title, onBack, host, say, children }: { title: string; onBack: () => void; host: string; say: string; children: React.ReactNode }) {
   const L = useL();
   return <div className="stack">
-    <button className="link back" onClick={onBack}><ArrowLeft size={16} aria-hidden /> {L("Rudi kwenye michezo", "Back to games")}</button>
+    <button className="link back" onClick={onBack}><ArrowLeft size={16} aria-hidden /> {L("Rudi", "Back")}</button>
     <h2>{title}</h2>
     <div className="line-row guide"><Person look={host} size={48} /><div className="bubble"><p>{say}</p><Listen text={say} /></div></div>
     {children}
   </div>;
 }
 
+function Quiz({ onBack, game }: { onBack: () => void; game: Game }) {
+  const L = useL();
+  const [i, setI] = useState(0), [score, setScore] = useState(0), [pick, setPick] = useState<number | null>(null);
+  const q: Question | undefined = game.questions[i];
+  if (!q) { keepBest(game.id, score); return <Frame title={game.title} onBack={onBack} host="mwalimu" say={L(`Umepata ${score} kati ya ${game.questions.length}.`, `You got ${score} of ${game.questions.length}.`)}><button className="btn" onClick={onBack}>{L("Maliza", "Finish")}</button></Frame>; }
+  return <Frame title={game.title} onBack={onBack} host="mwalimu" say={L(`Swali ${i + 1} kati ya ${game.questions.length}`, `Question ${i + 1} of ${game.questions.length}`)}>
+    <p className="big-title">{q.q}</p>
+    <div className="stack">{q.options.map((op, j) => <button key={j} className="choice" disabled={pick != null} data-right={pick != null && j === q.answer} aria-pressed={pick === j} onClick={() => { setPick(j); if (j === q.answer) setScore(score + 1); }}>{op}</button>)}</div>
+    {pick != null && <>
+      <p className="note" role="status">{pick === q.answer ? L("Sahihi!", "Correct!") : `${L("Jibu ni", "The answer is")}: ${q.options[q.answer]}`}</p>
+      <button className="btn" onClick={() => { setI(i + 1); setPick(null); }}>{L("Endelea", "Next")}</button>
+    </>}
+  </Frame>;
+}
+
+const PlayGame = ({ game, onBack }: { game: Game; onBack: () => void }) =>
+  game.kind === "match" ? <Match onBack={onBack} pairs={game.pairs} id={game.id} title={game.title} /> : <Quiz onBack={onBack} game={game} />;
+
+// Turn a lesson or anything the user pastes (notes, a meeting summary, a contract page) into a game.
+function Maker({ onMade }: { onMade: (g: Game) => void }) {
+  const { me } = useApp();
+  const L = useL(), T = useT();
+  const [from, setFrom] = useState<"lesson" | "text">("text"), [moduleId, setModuleId] = useState(MODULES[0].id);
+  const [text, setText] = useState(""), [title, setTitle] = useState(""), [kind, setKind] = useState<"match" | "quiz">("quiz");
+  const [lang, setLang] = useState<string>(me?.lang ?? "sw"), [other, setOther] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState("");
+  const go = async () => {
+    setBusy(true); setErr("");
+    try { onMade(await api<Game>("/tools/game", { body: { kind, lang: lang === "other" ? other : lang, title, ...(from === "lesson" ? { moduleId } : { text }) } })); }
+    catch (x: any) {
+      setErr(x.message === "needs_ai" ? L("Masomo yanapatikana kwa Kiswahili na Kiingereza. Lugha nyingine zinahitaji AI ya moja kwa moja, ambayo haipo kwenye onyesho hili. Unaweza kubandika maandishi yako kwa lugha yoyote.", "Lessons come in Kiswahili and English. Other languages need live AI, which this demo does not have. You can paste your own text in any language.")
+        : x.message === "too_little" ? (kind === "match" ? L("Sikupata jozi za kutosha. Andika mstari mmoja kwa kila neno, kama 'CDA: mkataba wa jamii'.", "I could not find enough pairs. Write one per line, like 'CDA: community agreement'.") : L("Andika angalau sentensi tatu kamili, kila moja na maneno matano au zaidi.", "Write at least three full sentences, each with five or more words."))
+        : L("Haikufanikiwa. Jaribu tena.", "That did not work. Try again."));
+    }
+    setBusy(false);
+  };
+  return <section className="card stack">
+    <h3><Sparkles size={18} aria-hidden /> {L("Tengeneza mchezo", "Make a game")}</h3>
+    <div className="tabs" role="tablist">{([["text", L("Maudhui yangu", "My own content")], ["lesson", L("Kutoka somo", "From a lesson")]] as const).map(([id, n]) => <button key={id} role="tab" aria-selected={from === id} onClick={() => setFrom(id)}>{n}</button>)}</div>
+    {from === "lesson"
+      ? <label>{L("Somo", "Lesson")}<select value={moduleId} onChange={(e) => setModuleId(e.target.value)}>{MODULES.map((m) => <option key={m.id} value={m.id}>{T(m.title)}</option>)}</select></label>
+      : <>
+        <label>{L("Jina la mchezo", "Game name")}<input value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} /></label>
+        <label>{L("Bandika maudhui yako, kwa lugha yoyote", "Paste your content, in any language")}<textarea rows={6} maxLength={6000} value={text} onChange={(e) => setText(e.target.value)} placeholder={L("Mfano:\nCDA: mkataba wa jamii na mwekezaji\nFPIC: ridhaa huru kabla ya mradi\nBaseline: hali bila mradi", "For example:\nCDA: the community and developer agreement\nFPIC: free consent before a project\nBaseline: what happens without the project")} /></label>
+        <p className="muted small">{L("Ondoa majina na nambari za watu kwanza.", "Remove people's names and numbers first.")}</p>
+      </>}
+    <div className="two">
+      <label>{L("Aina", "Type")}<select value={kind} onChange={(e) => setKind(e.target.value as "match" | "quiz")}><option value="quiz">{L("Maswali (jaza pengo)", "Quiz (fill the gap)")}</option><option value="match">{L("Linganisha jozi", "Match the pairs")}</option></select></label>
+      <label>{L("Lugha", "Language")}<select value={lang} onChange={(e) => setLang(e.target.value)}><option value="sw">Kiswahili</option><option value="en">English</option><option value="other">{L("Nyingine...", "Other...")}</option></select></label>
+    </div>
+    {lang === "other" && <label>{L("Lugha gani?", "Which language?")}<input value={other} maxLength={30} onChange={(e) => setOther(e.target.value)} placeholder="Maa, Samburu, Kikuyu, Somali..." /></label>}
+    {lang === "other" && <p className="muted small">{DEMO ? L("Kwenye onyesho hili mchezo unatumia maandishi yako kama yalivyo. Kwa AI ya moja kwa moja, inaweza kuandika mchezo kwa lugha hiyo. Mtu anayeijua lugha ahakiki.", "In this demo the game uses your text as written. With live AI it can write the game in that language. Have a speaker of the language check it.") : L("AI itaandika mchezo kwa lugha hiyo. Mtu anayeijua lugha ahakiki kabla ya kutumia na kundi.", "The AI writes the game in that language. Have a speaker check it before using it with a group.")}</p>}
+    {err && <p className="error" role="alert">{err}</p>}
+    <button className="btn" disabled={busy || (from === "text" && !text.trim()) || (lang === "other" && !other.trim())} onClick={go}>{busy ? L("Inatengeneza...", "Making...") : L("Tengeneza", "Make it")}</button>
+  </section>;
+}
+
 export function Games() {
   const L = useL();
-  const [g, setG] = useState("");
-  if (g === "match") return <Match onBack={() => setG("")} />;
-  if (g === "share") return <Share onBack={() => setG("")} />;
-  if (g === "flags") return <Flags onBack={() => setG("")} />;
+  const [g, setG] = useState(""), [play, setPlay] = useState<Game | null>(null), [made, setMade] = useState<Game | null>(null);
+  const mine = useData<Game[]>("/games");
+  const back = () => { setPlay(null); setG(""); };
+  if (play) return <PlayGame game={play} onBack={back} />;
+  if (g === "match") return <Match onBack={back} pairs={PAIRS.map(([a, b]) => [L(a.sw, a.en), L(b.sw, b.en)] as [string, string])} />;
+  if (g === "share") return <Share onBack={back} />;
+  if (g === "flags") return <Flags onBack={back} />;
   const list: [string, typeof Shuffle, string, string, string][] = [
     ["match", Shuffle, "mwalimu", L("Linganisha maneno", "Match the words"), L("Kumbuka maneno muhimu ya kaboni", "Remember the key carbon words")],
     ["share", Coins, "bibi", L("Hesabu ya mgao", "Work out the share"), L("40% ya nini? Fanya hesabu sokoni", "40% of what? Do the market maths")],
     ["flags", Flag, "mama", L("Bendera nyekundu", "Red flags"), L("Tambua vifungu vya kuuliza zaidi", "Spot clauses that need more questions")],
   ];
-  return <div className="lessons">
-    {list.map(([id, Icon, look, name, sub]) => (
-      <button key={id} className="game card" onClick={() => setG(id)}><Person look={look} size={56} /><span><b>{name}</b><small className="muted">{sub}</small>{best(id) > 0 && <small className="muted"><Icon size={12} aria-hidden /> {L("Bora", "Best")}: {best(id)}</small>}</span></button>
-    ))}
+  return <div className="stack">
+    <Maker onMade={setMade} />
+    {made && <section className="card stack" role="status">
+      <p><b>{made.title}</b> · {made.kind === "match" ? L(`jozi ${made.pairs.length}`, `${made.pairs.length} pairs`) : L(`maswali ${made.questions.length}`, `${made.questions.length} questions`)} · {made.lang}{made.by === "ai" ? " · AI" : ""}</p>
+      <div className="row">
+        <button className="btn" onClick={() => setPlay(made)}><Play size={16} aria-hidden /> {L("Cheza", "Play")}</button>
+        <button className="btn ghost" onClick={async () => { await api("/games", { body: made }); setMade(null); mine.reload(); }}>{L("Hifadhi kwenye michezo yangu", "Save to my games")}</button>
+      </div>
+    </section>}
+    {!!mine.data?.length && <><h3>{L("Michezo yangu", "My games")}</h3>
+      <div className="lessons">{mine.data.map((x) => (
+        <div key={x.id} className="game card"><button className="link grow" onClick={() => setPlay(x)}><b>{x.title}</b><small className="muted block">{x.kind === "match" ? L("Linganisha", "Match") : L("Maswali", "Quiz")} · {x.lang}</small></button>
+          <button className="icon" aria-label={L(`Futa ${x.title}`, `Delete ${x.title}`)} onClick={async () => { await api(`/games/${x.id}`, { method: "DELETE" }); mine.reload(); }}><Trash2 size={16} aria-hidden /></button></div>
+      ))}</div></>}
+    <h3>{L("Michezo iliyo tayari", "Ready-made games")}</h3>
+    <div className="lessons">
+      {list.map(([id, Icon, look, name, sub]) => (
+        <button key={id} className="game card" onClick={() => setG(id)}><Person look={look} size={56} /><span><b>{name}</b><small className="muted">{sub}</small>{best(id) > 0 && <small className="muted"><Icon size={12} aria-hidden /> {L("Bora", "Best")}: {best(id)}</small>}</span></button>
+      ))}
+    </div>
   </div>;
 }

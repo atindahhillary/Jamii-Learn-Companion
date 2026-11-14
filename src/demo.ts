@@ -1,23 +1,26 @@
 // Public demo: answers every /api path in the browser, so nothing leaves the visitor's device.
 import { AUDIENCES, INTAKE, THEMES, type Audience, type Lang, type Theme } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
-import { glossaryFor, intakeQuestion, offlineAnswer, reviewRules } from "../shared/answers";
+import { glossaryFor, offlineAnswer, reviewRules } from "../shared/answers";
+import { cleanGoal, cleanGroup, makePlan, type Goal, type Group } from "../shared/plan";
+import { cleanGame, gameFromModule, gameFromText, type Game } from "../shared/games";
 import { STARTERS, converse, type Mode } from "../shared/council";
 import { BOT_POST, CIRCLES, FIRST_POST, NAMES, SAYINGS } from "../shared/demo-data";
 import { MIN_GROUP, buildCurriculum, classify, gapScores, type Kind } from "../server/analyze";
 
-type Msg = { id: number; role: string; expert?: string; body: string; source?: string | null; pic?: string | null; asks?: number | null; flagged?: boolean; resolved?: boolean; at: number };
+type Msg = { id: number; session?: number; role: string; expert?: string; body: string; source?: string | null; pic?: string | null; asks?: number | null; flagged?: boolean; resolved?: boolean; at: number };
 type Insight = { body: string; theme: Theme; kind: Kind; sentiment: number; at: number };
 type Post = { id: number; circle: number; author: string; is_bot: boolean; body: string; hidden?: boolean };
 type Work = { id: number; module_id: string; body: string; feedback: string | null; name: string; mine?: boolean };
 type State = {
   role: "learner" | "admin" | null; name: string; lang: Lang; audience: Audience; consentShare: boolean; intakeStep: number;
   messages: Msg[]; insights: Insight[]; progress: Record<string, { score: number; at: number }>; posts: Post[]; nextId: number; work: Work[];
+  goal: Goal | null; groups: Group[]; games: Game[]; session: number;
 };
 
 const KEY = "jlc-demo", DAY = 86400_000;
 const fresh = (): State => ({
-  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000,
+  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000, goal: null, groups: [], games: [], session: 0,
   work: [
     { id: 1, module_id: "m2", name: "Nasieku L.", feedback: null, body: "Nilimuuliza bibi yangu. Zamani eneo la juu lilipumzishwa wakati wa mvua. Sasa mifugo imeongezeka na eneo hilo halipumziki." },
     { id: 2, module_id: "m6", name: "Lekishon M.", feedback: null, body: "Nilipata 1.6m na 4m. Tofauti ni kubwa, kwa hiyo tutauliza orodha ya gharama kwenye mkutano." },
@@ -64,8 +67,13 @@ function learnerView(s: State) {
   return {
     progress: Object.entries(s.progress).map(([module_id, p]) => ({ module_id, score: p.score })),
     circles: CIRCLES.map(([name, topic], i) => ({ id: i + 1, name, topic, members: NAMES.length + 1 })),
-    activity, plan: buildCurriculum(gapScores(ins, prog)),
+    activity, goal: s.goal, plan: s.goal ? makePlan(s.goal, gapScores(ins, prog)) : buildCurriculum(gapScores(ins, prog)),
   };
+}
+
+function learnerGaps(s: State) {
+  const team = cohort(Date.now()).filter((c) => c.community === "Jamii ya Mfano A");
+  return gapScores([...team.flatMap((c) => c.said), ...s.insights], [...team.flatMap((c) => c.lessons), ...Object.entries(s.progress).map(([module_id, p]) => ({ module_id, score: p.score }))]);
 }
 
 function report(s: State) {
@@ -106,16 +114,16 @@ function overview(s: State) {
 
 const scrub = (t: string) => t.replace(/(?:\+?254|\b0)[17]\d{8}\b/g, "[nambari ya simu]").replace(/\b(?:id|kitambulisho|pin)\D{0,15}\d{4,9}\b/gi, "[siri]");
 
-function chat(s: State, text: string, mode: Mode, expertId: string, skipIntake = false) {
+function chat(s: State, text: string, mode: Mode, skipIntake = false) {
   const u = { lang: s.lang, audience: s.audience, intake_step: stepOf(s) };
   const lastBot = [...s.messages].reverse().find((m) => m.role === "bot");
   const pending = skipIntake || s.role === "admin" ? null : lastBot ? lastBot.asks ?? null : u.intake_step < INTAKE.length ? u.intake_step : null;
   const clean = scrub(text);
-  s.messages.push({ id: s.nextId++, role: "user", body: clean, at: Date.now() });
-  const turn = converse(clean, u, { mode, expertId: expertId || undefined, pending, n: s.messages.length, listen: !skipIntake && s.role !== "admin" });
+  s.messages.push({ id: s.nextId++, session: s.session, role: "user", body: clean, at: Date.now() });
+  const turn = converse(clean, u, { mode, pending, n: s.messages.length, listen: !skipIntake && s.role !== "admin" });
   if (turn.answered != null) s.intakeStep = Math.max(s.intakeStep, turn.answered + 1);
   s.insights.push({ ...classify(clean, turn.answered != null ? INTAKE[turn.answered].theme : undefined), body: clean, at: Date.now() });
-  const replies = turn.replies.map((r) => { const m = { ...r, id: s.nextId++, role: "bot", at: Date.now() }; s.messages.push(m); return m; });
+  const replies = turn.replies.map((r) => { const m = { ...r, id: s.nextId++, session: s.session, role: "bot", at: Date.now() }; s.messages.push(m); return m; });
   const main = replies.find((r) => r.source) ?? replies[0];
   return { replies, followups: turn.followups, intakeStep: stepOf(s), id: main?.id, body: replies.map((r) => r.body).join("\n\n"), expert: main?.expert, source: main?.source ?? null, pic: replies.find((r) => r.pic)?.pic ?? null };
 }
@@ -134,10 +142,17 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     if (typeof b.consentShare === "boolean") s.consentShare = b.consentShare;
     return done({ ok: true });
   }
-  if (path === "/me/export") return { profile: { name: s.name, lang: s.lang, audience: s.audience }, messages: s.messages, insights: s.insights, progress: s.progress };
+  if (path === "/me/export") return { profile: { name: s.name, lang: s.lang, audience: s.audience }, messages: s.messages, insights: s.insights, progress: s.progress, goal: s.goal, groups: s.groups, games: s.games };
   if (path === "/me" && method === "DELETE") { memory = fresh(); try { localStorage.removeItem(KEY); } catch { /* nothing stored */ } return { ok: true }; }
-  if (path === "/chat" && method === "GET") return { messages: s.messages.slice(-60).map((m) => ({ ...m })), intakeQuestion: s.messages.length ? null : intakeQuestion({ lang: s.lang, audience: s.audience, intake_step: stepOf(s) }), starters: STARTERS.map((x) => x[s.lang]) };
-  if (path === "/chat") return done(chat(s, String(b.text).slice(0, 1500), b.mode ?? "ask", b.expert ?? ""));
+  const cur = (m: Msg) => (m.session ?? 0) === s.session;
+  if (path === "/chat" && method === "GET") return { messages: s.messages.filter(cur).slice(-200).map((m) => ({ ...m })), intakeQuestion: null, starters: STARTERS.map((x) => x[s.lang]) };
+  if (path === "/chat/new") { if (s.messages.some(cur)) s.session++; return done({ ok: true }); }
+  if (path === "/chat/transcripts") {
+    const by = new Map<number, Msg[]>();
+    for (const m of s.messages) by.set(m.session ?? 0, [...(by.get(m.session ?? 0) ?? []), m]);
+    return [...by.entries()].reverse().map(([session, m]) => ({ session, started: new Date(m[0].at).toISOString(), messages: m.map((x) => ({ role: x.role, body: x.body, at: new Date(x.at).toISOString() })) }));
+  }
+  if (path === "/chat") return done(chat(s, String(b.text).slice(0, 1500), b.mode ?? "ask"));
   if (path === "/chat/flag") { const m = s.messages.find((x) => x.id === Number(b.id)); if (m) m.flagged = true; return done({ ok: true }); }
   if (path === "/learn") return learnerView(s);
   if (path === "/learn/quiz") {
@@ -151,7 +166,7 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     if (m && text) s.insights.push({ ...classify(text, m.theme), body: text, at: Date.now() });
     return done({ ok: true });
   }
-  if (path === "/learn/ask") return done(chat(s, String(b.text).slice(0, 800), "ask", "", true));
+  if (path === "/learn/ask") return done(chat(s, String(b.text).slice(0, 800), "ask", true));
   if (path === "/assignments" && method === "GET") return s.work.filter((w) => w.mine).map((w) => ({ ...w }));
   if (path === "/assignments") {
     const old = s.work.find((w) => w.mine && w.module_id === b.moduleId), body = scrub(String(b.text).slice(0, 1500));
@@ -161,6 +176,22 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
   if (path === "/learn/practice") { s.progress.roleplay = { score: b.score, at: Date.now() }; return done({ ok: true }); }
   if (path === "/tools/review") return { ...reviewRules(b.text, s.lang), summary: null };
   if (path === "/tools/translate") return { text: null, glossary: glossaryFor(b.text) };
+  if (path === "/plan" && method === "GET") return { goal: s.goal, groups: s.groups.map((g) => ({ ...g })), gaps: learnerGaps(s) };
+  if (path === "/plan") { const g = cleanGoal(b); if (!g) throw fail("fields", 400); s.goal = g; return done({ ok: true }); }
+  if (path === "/groups") { const g = cleanGroup(b); if (!g) throw fail("fields", 400); s.groups = [...s.groups.filter((x) => x.id !== g.id), g]; return done(g); }
+  const delGroup = path.match(/^\/groups\/([\w-]+)$/);
+  if (delGroup && method === "DELETE") { s.groups = s.groups.filter((x) => x.id !== delGroup[1]); return done({ ok: true }); }
+  if (path === "/games" && method === "GET") return s.games.map((g) => ({ ...g }));
+  if (path === "/games") { const g = cleanGame(b); if (!g) throw fail("fields", 400); s.games = [g, ...s.games.filter((x) => x.id !== g.id)].slice(0, 40); return done(g); }
+  const delGame = path.match(/^\/games\/([\w-]+)$/);
+  if (delGame && method === "DELETE") { s.games = s.games.filter((x) => x.id !== delGame[1]); return done({ ok: true }); }
+  if (path === "/tools/game") {
+    const kind = b.kind === "quiz" ? "quiz" : "match", lang = String(b.lang || s.lang).slice(0, 30);
+    // No live AI here: lessons work in Kiswahili and English, pasted text works in the language it is written in.
+    const g = b.moduleId ? (lang === "sw" || lang === "en" ? gameFromModule(b.moduleId, kind, lang) : null) : gameFromText(scrub(String(b.text ?? "").slice(0, 6000)), kind, lang, String(b.title || (s.lang === "sw" ? "Mchezo wangu" : "My game")).slice(0, 80));
+    if (!g) throw fail(b.moduleId ? "needs_ai" : "too_little", 422);
+    return g;
+  }
   if (path === "/whatsapp/link") throw fail("not_configured", 503);
 
   const posts = path.match(/^\/circles\/(\d+)\/posts$/);

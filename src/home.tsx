@@ -1,6 +1,7 @@
 import { BookOpenCheck, Flame, MessagesSquare, Sprout, Target } from "lucide-react";
 import { useState } from "react";
-import { AUDIENCES, THEMES } from "../shared/content";
+import { AUDIENCES, THEMES, type T } from "../shared/content";
+import type { Goal } from "../shared/plan";
 import { MODULES } from "../shared/curriculum";
 import { AreaChart } from "./charts";
 import { DEMO, Failed, Loading, Mascot, api, useApp, useData, useL, useT } from "./core";
@@ -9,7 +10,7 @@ import { InstallButton } from "./main";
 
 export type LearnData = {
   progress: { module_id: string; score: number }[]; circles: { id: number; name: string; topic: string; members: number }[];
-  activity: { day: string; n: number }[]; plan: { moduleId: string; theme: string; gap: number; order: number; day: number; voice: number }[];
+  activity: { day: string; n: number }[]; plan: { moduleId: string; theme: string; order: number; week?: number; reason?: T }[]; goal?: Goal | null;
 };
 
 export function HomePage() {

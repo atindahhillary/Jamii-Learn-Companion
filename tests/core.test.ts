@@ -21,12 +21,14 @@ async function register(extra: object = {}) {
 
 describe("council conversation", () => {
   const u = { lang: "sw" as const, audience: "herder" as const, intake_step: 5 };
-  it("answers with several voices and suggests follow-ups", async () => {
-    const { converse } = await import("../shared/council.js");
+  it("answers in one voice that carries several experts' points", async () => {
+    const { converse, ALSO } = await import("../shared/council.js");
     const t = converse("Mgao wa mapato ni asilimia ngapi?", u, { pending: null, n: 0 });
-    expect(t.replies[0].expert).toBe("mchambuzi");
+    expect(t.replies).toHaveLength(1);
+    expect(t.replies[0].expert).toBe("jamii");
     expect(t.replies[0].body).toContain("40%");
-    expect(new Set(t.replies.map((r) => r.expert)).size).toBeGreaterThanOrEqual(2);
+    expect(t.replies[0].body).toContain(ALSO.sw);
+    expect(t.replies[0].source).toContain("reg 29");
     expect(t.followups).toHaveLength(3);
   });
   it("varies how a specialist opens", async () => {
@@ -38,8 +40,9 @@ describe("council conversation", () => {
     const { converse, REACT } = await import("../shared/council.js");
     const t = converse("Nina wasiwasi pesa hazitafika kwa wote", { ...u, intake_step: 0 }, { pending: 0, n: 0 });
     expect(t.answered).toBe(0);
-    expect(REACT.concern.map((x) => x.sw)).toContain(t.replies[0].body);
-    expect(t.replies.at(-1)!.asks).toBe(1);
+    expect(t.replies).toHaveLength(1);
+    expect(REACT.concern.some((x) => t.replies[0].body.startsWith(x.sw))).toBe(true);
+    expect(t.replies[0].asks).toBe(1);
   });
   it("answers a question asked instead of a listening answer", async () => {
     const { converse } = await import("../shared/council.js");
@@ -47,23 +50,33 @@ describe("council conversation", () => {
     expect(t.answered).toBe(2);
     expect(t.replies.some((r) => r.body.includes("kusema hapana"))).toBe(true);
   });
-  it("lets one chosen specialist speak alone", async () => {
-    const { converse } = await import("../shared/council.js");
-    const t = converse("Ridhaa ni nini?", u, { pending: null, n: 0, expertId: "wakili" });
-    expect(t.replies.every((r) => r.expert === "wakili")).toBe(true);
+  it("gives an analogy without the extra points", async () => {
+    const { converse, ALSO } = await import("../shared/council.js");
+    const t = converse("Ridhaa ni nini?", u, { pending: null, n: 0, mode: "analogy" });
+    expect(t.replies[0].body).not.toContain(ALSO.sw);
   });
   it("finds the new topics and every suggested question has an answer", async () => {
     const { findCard, FOLLOW, STARTERS } = await import("../shared/council.js");
     for (const [q, id] of [["Who buys carbon credits?", "buyers"], ["Nani hununua mikopo ya kaboni?", "buyers"], ["Malalamiko yanapelekwa wapi?", "grievance"], ["Can we say no?", "sayno"], ["How long does a project last?", "duration"], ["Wanawake na vijana wanapata nini?", "inclusion"]]) expect(findCard(q)?.id).toBe(id);
     for (const f of [...Object.values(FOLLOW).flat(), ...STARTERS]) for (const l of ["sw", "en"] as const) expect(findCard(f[l]), f[l]).not.toBeNull();
   });
-  it("sends several voices through the server and remembers the pending question", async () => {
+  it("answers through the server in one message and remembers the pending question", async () => {
     const { cookie } = await register();
     const first = await (await post("/chat", { text: "Wazee wetu hupumzisha malisho kwa desturi" }, cookie)).json();
     expect(first.replies.at(-1).asks).toBe(1);
     const second = await (await post("/chat", { text: "Mgao wa mapato ni asilimia ngapi?" }, cookie)).json();
     expect(second.intakeStep).toBe(2);
-    expect(second.replies.length).toBeGreaterThanOrEqual(3);
+    expect(second.replies).toHaveLength(1);
+  });
+  it("keeps every conversation and starts a new one on request", async () => {
+    const { cookie } = await register();
+    await post("/chat", { text: "CDA ni nini?" }, cookie);
+    await post("/chat/new", {}, cookie);
+    await post("/chat", { text: "Who buys carbon credits?" }, cookie);
+    expect((await (await get("/chat", cookie)).json()).messages.every((m: any) => !m.body.includes("CDA ni nini"))).toBe(true);
+    const all = await (await get("/chat/transcripts", cookie)).json();
+    expect(all).toHaveLength(2);
+    expect(all[1].messages[0].body).toBe("CDA ni nini?");
   });
 });
 
@@ -124,7 +137,17 @@ describe("public demo", () => {
     await demoApi("/me", "DELETE", {});
     demoSignIn("admin", "", "sw", "herder");
     demoSignIn("learner", "Mgeni", "sw", "herder");
-    expect((await demoApi("/chat", "GET", {})).intakeQuestion).toContain("Umesikia");
+    expect((await demoApi("/chat", "GET", {})).messages).toHaveLength(0);
+    await demoApi("/chat", "POST", { text: "CDA ni nini?" });
+    await demoApi("/chat/new", "POST", {});
+    await demoApi("/chat", "POST", { text: "Can we say no?" });
+    expect((await demoApi("/chat/transcripts", "GET", {})).length).toBe(2);
+    await demoApi("/plan", "POST", { forWhom: "me", themes: ["contracts"], level: "some", minutes: 20, note: "" });
+    expect((await demoApi("/learn", "GET", {})).plan.map((p: any) => p.moduleId)).toEqual(["m7"]);
+    const game = await demoApi("/tools/game", "POST", { moduleId: "m6", kind: "quiz", lang: "en" });
+    await demoApi("/games", "POST", game);
+    expect((await demoApi("/games", "GET", {}))[0].questions.length).toBeGreaterThan(1);
+    await expect(demoApi("/tools/game", "POST", { moduleId: "m6", kind: "quiz", lang: "Maa" })).rejects.toThrow("needs_ai");
   });
 });
 
@@ -195,7 +218,7 @@ describe("api", () => {
     const { cookie } = await register();
     for (let i = 0; i < 5; i++) await post("/chat", { text: i === 3 ? "Nina wasiwasi kuhusu pesa" : "RUKA" }, cookie);
     const r = await (await post("/chat", { text: "mgao wa mapato ni asilimia ngapi?" }, cookie)).json();
-    expect(r.expert).toBe("mchambuzi");
+    expect(r.expert).toBe("jamii");
     expect(r.body).toContain("40%");
     expect(r.source).toContain("reg 29");
     expect((await q("select count(*)::int n from insights where kind = 'concern'"))[0].n).toBeGreaterThan(0);
@@ -292,5 +315,54 @@ describe("api", () => {
     for (let i = 0; i < 2; i++) await app.request("/api/whatsapp/webhook", { method: "POST", body: raw, headers: { "x-hub-signature-256": sig } });
     const rows = await q("select 1 from messages m join users u on u.id = m.user_id where u.phone_hash = $1 and m.channel = 'whatsapp' and m.role = 'user'", [phoneHash(e164)]);
     expect(rows).toHaveLength(1);
+  });
+});
+
+describe("plans, groups and games", () => {
+  it("builds a personal plan from choices and own words, basics first for beginners", async () => {
+    const { makePlan } = await import("../shared/plan.js");
+    const p = makePlan({ forWhom: "me", themes: ["benefits"], level: "new", minutes: 10, note: "Can we say no to a project?" });
+    expect(p.map((x) => x.moduleId)).toEqual(["m1", "m6", "m5", "m8"]);
+    expect(p[2].reason.en).toContain("own words");
+    expect(p.at(-1)!.week).toBeGreaterThan(1);
+    expect(p.every((x) => x.guide === null)).toBe(true);
+    expect(makePlan({ forWhom: "me", themes: [], level: "some", minutes: 20, note: "" })).toHaveLength(8);
+  });
+  it("grows a group's needs from facilitator notes and gives a guide per session", async () => {
+    const { cleanGroup, groupNeeds, groupPlan } = await import("../shared/plan.js");
+    const g = cleanGroup({ name: "Wanawake", needs: ["fpic"], note: "", members: [{ name: "Amina", note: "Anauliza kuhusu mgao wa pesa" }], sessions: [{ moduleId: "nope" }] })!;
+    expect(g.sessions).toHaveLength(0);
+    expect(groupNeeds(g).map((n) => n.theme)).toEqual(["fpic", "benefits"]);
+    const plan = groupPlan(g);
+    expect(plan.map((x) => x.moduleId)).toContain("m6");
+    expect(plan[0].guide?.discuss.sw).toBeTruthy();
+    expect(cleanGroup({ name: "" })).toBeNull();
+  });
+  it("makes games from pasted content and from lessons", async () => {
+    const { gameFromText, gameFromModule, cleanGame } = await import("../shared/games.js");
+    const m = gameFromText("CDA: community agreement\nFPIC: free prior consent\nBaseline - what happens without the project", "match", "en", "Words")!;
+    expect(m.pairs).toHaveLength(3);
+    const q = gameFromText("Wanunuzi wakubwa hununua mikopo kupitia madalali wengi. Jamii lazima iulize bei halisi ya mauzo. Kamati inapaswa kupokea ripoti ya mapato kila mwaka.", "quiz", "sw", "Q")!;
+    expect(q.questions).toHaveLength(3);
+    for (const x of q.questions) expect(x.q).toContain("_____");
+    expect(gameFromText("too short", "quiz", "en", "x")).toBeNull();
+    expect(gameFromModule("m1", "match", "sw")!.pairs.length).toBeGreaterThanOrEqual(2);
+    expect(cleanGame({ kind: "quiz", questions: [{ q: "a", options: ["x"], answer: 3 }] })).toBeNull();
+  });
+  it("saves plans, groups and games per user on the server", async () => {
+    const { cookie } = await register(), other = await register();
+    expect((await post("/plan", { forWhom: "nobody" }, cookie)).status).toBe(400);
+    await post("/plan", { forWhom: "group", themes: ["benefits"], level: "new", minutes: 60, note: "" }, cookie);
+    const learn = await (await get("/learn", cookie)).json();
+    expect(learn.plan[0].moduleId).toBe("m1");
+    expect(learn.plan[0].guide).toBeTruthy();
+    const g = await (await post("/groups", { name: "Vijana", members: [{ name: "Leku", note: "" }], needs: ["contracts"], sessions: [] }, cookie)).json();
+    expect((await (await get("/plan", cookie)).json()).groups[0].id).toBe(g.id);
+    expect((await (await get("/plan", other.cookie)).json()).groups).toHaveLength(0);
+    const game = await (await post("/tools/game", { text: "CDA: community agreement\nFPIC: free prior consent\nMRV: checking the carbon", kind: "match", lang: "en" }, cookie)).json();
+    expect(game.by).toBe("rules");
+    await post("/games", game, cookie);
+    expect(await (await get("/games", cookie)).json()).toHaveLength(1);
+    expect((await (await get("/me/export", cookie)).json()).saved.groups).toHaveLength(1);
   });
 });

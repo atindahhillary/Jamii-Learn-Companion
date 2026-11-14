@@ -120,44 +120,50 @@ const picFor = (c: Card) => MODULES_THEME_EXPERT.module[c.theme];
 
 export type Turn = { replies: Reply[]; followups: string[]; answered: number | null };
 
-export function converse(text: string, u: Learner, opt: { mode?: Mode; expertId?: string; pending: number | null; n: number; listen?: boolean }): Turn {
+// The whole council speaks as one companion: the lead seat's answer, the other seats' points folded in
+// as "also keep in mind", and any listening question at the end, all in a single message.
+export const COMPANION_ID = "jamii";
+export const ALSO = o("Pia kumbuka:", "Also keep in mind:");
+export const HELLO = o(
+  "Karibu, rafiki. Mimi ni Msaidizi wa Jamii, AI inayoleta pamoja ujuzi wa kaboni, sheria, ardhi, maarifa ya jadi, mapato na usalama wa AI. Unaweza kuniuliza chochote. Nikusaidie kuanza?",
+  "Welcome, friend. I am the Jamii Companion, an AI that brings together know-how on carbon, law, land, traditional knowledge, earnings and AI safety. You can ask me anything. Can I help you get started?",
+);
+
+export function converse(text: string, u: Learner, opt: { mode?: Mode; pending: number | null; n: number; listen?: boolean }): Turn {
   const L = u.lang, n = opt.n, mode = opt.mode ?? "ask", t = text.trim();
-  const reply = (expert: string, body: string, source: string | null = null, pic: string | null = null, asks: number | null = null): Reply => ({ expert, body, source, pic, asks });
-  const replies: Reply[] = [];
-  let answered: number | null = null, theme: Theme | null = null;
+  const parts: string[] = [];
+  let answered: number | null = null, theme: Theme | null = null, source: string | null = null, pic: string | null = null, asks: number | null = null;
 
   if (opt.pending != null && INTAKE[opt.pending]) {
     answered = opt.pending;
-    const asker = MODULES_THEME_EXPERT.expert[INTAKE[opt.pending].theme];
-    if (/^(ruka|skip)$/i.test(t)) replies.push(reply(asker, pick(REACT.skip, n)[L]));
-    else if (!isQuestion(t)) replies.push(reply(asker, pick(REACT[kindOf(t)], n)[L]));
-    if (answered === INTAKE.length - 1) replies.push(reply("mwalimu", DONE[L]));
+    if (/^(ruka|skip)$/i.test(t)) parts.push(pick(REACT.skip, n)[L]);
+    else if (!isQuestion(t)) parts.push(pick(REACT[kindOf(t)], n)[L]);
+    if (answered === INTAKE.length - 1) parts.push(DONE[L]);
   }
 
   const card = answered != null && !isQuestion(t) ? null : findCard(t);
   if (card) {
-    theme = card.theme;
-    const fromWords = routeExpert(t);
-    const lead = opt.expertId || (mode !== "ask" ? "mwalimu" : fromWords.id === "mzee" ? "mzee" : MODULES_THEME_EXPERT.expert[card.theme]);
-    const main = mode === "ask" ? card[levelFor(u.audience)][L] : card.analogy[L];
-    replies.push(reply(lead, [pick(OPENERS[lead], n)[L], main, mode === "game" ? GAME[L] : "", FOOT[L]].filter(Boolean).join("\n\n"), card.source, picFor(card)));
+    theme = card.theme; source = card.source; pic = picFor(card);
+    const lead = mode !== "ask" ? "mwalimu" : routeExpert(t).id === "mzee" ? "mzee" : MODULES_THEME_EXPERT.expert[card.theme];
+    parts.push(pick(OPENERS[lead], n)[L], mode === "ask" ? card[levelFor(u.audience)][L] : card.analogy[L]);
+    if (mode === "game") parts.push(GAME[L]);
     const others = TAKES[card.theme].filter(([e]) => e !== lead);
-    const voices = opt.expertId ? TAKES[card.theme].filter(([e]) => e === lead) : mode === "ask" ? [pick(others, n), pick(others, n + 1)].filter((v, i, a) => a.indexOf(v) === i) : [];
-    for (const [e, take] of voices) replies.push(reply(e, take[L]));
+    const also = mode === "ask" ? [pick(others, n), pick(others, n + 1)].filter((v, i, a) => a.indexOf(v) === i) : [];
+    if (also.length) parts.push(`${ALSO[L]}\n${also.map(([, x]) => `• ${x[L]}`).join("\n")}`);
+    parts.push(FOOT[L]);
   } else if (answered == null) {
-    if (isQuestion(t)) replies.push(reply(opt.expertId || "mwalimu", NO_CARD[L]));
-    else replies.push(reply(opt.expertId || MODULES_THEME_EXPERT.expert[kindOf(t) === "knowledge" ? "ecology" : "carbon_basics"], `${pick(REACT[kindOf(t)], n)[L]}\n\n${INVITE[L]}`));
+    parts.push(isQuestion(t) ? NO_CARD[L] : `${pick(REACT[kindOf(t)], n)[L]}\n\n${INVITE[L]}`);
   }
 
-  // Ask the next listening question now and then, in the voice of the seat it belongs to.
+  // Ask the next listening question now and then, at the end of the same message.
   const step = u.intake_step + (answered != null ? 1 : 0);
   if (opt.listen !== false && step < INTAKE.length && (answered != null || n % 2 === 1)) {
-    const next = INTAKE[step];
-    replies.push(reply(MODULES_THEME_EXPERT.expert[next.theme], `${pick(LEAD_IN, n)[L]}\n\n${next.q[L]}`, null, null, step));
+    parts.push(`${pick(LEAD_IN, n)[L]}\n\n${INTAKE[step].q[L]}`);
+    asks = step;
   }
   const followups = (theme ? FOLLOW[theme] : STARTERS).map((f) => f[L]).filter((f) => f.toLowerCase() !== t.toLowerCase());
-  return { replies, followups, answered };
+  return { replies: [{ expert: COMPANION_ID, body: parts.join("\n\n"), source, pic, asks }], followups, answered };
 }
 
-// Plain-text version for WhatsApp, where several voices become one message with names.
-export const asText = (replies: Reply[], names: Record<string, string>) => replies.map((r) => `*${names[r.expert] ?? r.expert}*: ${r.body}`).join("\n\n");
+// Plain-text version for WhatsApp.
+export const asText = (replies: Reply[]) => replies.map((r) => r.body).join("\n\n");

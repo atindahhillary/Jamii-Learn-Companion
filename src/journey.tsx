@@ -15,11 +15,11 @@ function mix(a: number[], b: number[], t: number) {
 }
 
 // Your own land: it starts dry and comes back to life, one tree per stop.
-export function Land({ done, fresh = false }: { done: number; fresh?: boolean }) {
+export function Land({ done, fresh = false, total = MODULES.length }: { done: number; fresh?: boolean; total?: number }) {
   const L = useL();
-  const t = done / MODULES.length;
+  const t = done / total;
   return (
-    <svg className="my-land" viewBox="0 0 800 280" preserveAspectRatio="xMidYMax slice" role="img" aria-label={L(`Ardhi yako: miti ${done} kati ya ${MODULES.length}`, `Your land: ${done} of ${MODULES.length} trees`)}>
+    <svg className="my-land" viewBox="0 0 800 280" preserveAspectRatio="xMidYMax slice" role="img" aria-label={L(`Ardhi yako: miti ${done} kati ya ${total}`, `Your land: ${done} of ${total} trees`)}>
       <rect width="800" height="280" fill={mix([240, 214, 170], [176, 224, 238], t)} />
       <circle cx="640" cy={130 - 80 * t} r="40" fill="#f6c453" />
       <path d="M0 170c130-46 260-44 400-14s280 14 400-30v154H0z" fill={mix([201, 170, 116], [127, 174, 92], t)} />
@@ -163,7 +163,7 @@ export function Lesson({ m, doneBefore, onDone }: { m: Module; doneBefore: numbe
   );
 }
 
-export function Trail({ plan, done, onOpen, onPlay }: { plan: { moduleId: string }[]; done: { module_id: string; score: number }[]; onOpen: (id: string) => void; onPlay: () => void }) {
+export function Trail({ plan, done, onOpen, onPlay }: { plan: { moduleId: string; week?: number; reason?: { sw: string; en: string } }[]; done: { module_id: string; score: number }[]; onOpen: (id: string) => void; onPlay: () => void }) {
   const L = useL(), T = useT();
   const nextId = plan.find((p) => !done.some((d) => d.module_id === p.moduleId))?.moduleId;
   return (
@@ -174,7 +174,7 @@ export function Trail({ plan, done, onOpen, onPlay }: { plan: { moduleId: string
           <li key={m.id} className={i % 2 ? "right" : ""}>
             <button className="stop" data-state={d ? "done" : m.id === nextId ? "next" : "ahead"} onClick={() => onOpen(m.id)}>
               <span className="stop-dot">{d ? <Check size={20} aria-hidden /> : i + 1}</span>
-              <span><small>{T(STORY[m.id].place)}</small><b>{T(m.title)}</b><small>{d ? `${L("Alama", "Score")} ${d.score}%` : `${m.minutes} ${L("dakika", "min")}`}</small></span>
+              <span><small>{T(STORY[m.id].place)}</small><b>{T(m.title)}</b><small>{d ? `${L("Alama", "Score")} ${d.score}%` : `${m.minutes} ${L("dakika", "min")}`}{p.week ? ` · ${L("Wiki", "Week")} ${p.week}` : ""}</small>{p.reason && <small className="why">{T(p.reason)}</small>}</span>
             </button>
           </li>
         );

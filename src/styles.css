@@ -212,3 +212,25 @@ th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; animation: none !important; } }
 @media print { .side, .top, .no-print, .tabs { display: none !important; } .shell { display: block; background: #fff !important; } .card { box-shadow: none; } }
+
+/* One-voice chat, plan builder, groups, transcripts */
+.chips.wrap { flex-wrap: wrap; overflow: visible; padding: 0; }
+.chips .start { background: var(--butter); font-weight: 600; }
+.planner .choice { display: inline-flex; gap: 6px; align-items: center; }
+.planner .chips .choice { min-height: 40px; padding: 8px 12px; }
+.why { display: block; color: var(--muted); font-size: .76rem; margin-top: 2px; }
+.session-plan li { padding: 10px 12px; border-radius: 10px; background: var(--bg); margin-bottom: 8px; }
+.session-plan li[data-done=true] { opacity: .7; } .session-plan li[data-next=true] { outline: 2px solid var(--violet); }
+.session-plan .note { margin-top: 8px; }
+.member { display: grid; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.transcript { display: flex; align-items: center; gap: 4px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.transcript .link { text-align: left; }
+.council .stack { margin-top: 12px; } .council h3 { font-size: .95rem; }
+.profile .left { text-align: left; } .profile .left li { margin-bottom: 4px; }
+fieldset.chips { border: 0; margin: 0; }
+.phone-only { display: none; }
+@media (max-width: 860px) {
+  .phone-only { display: inline-flex; }
+  .chat[data-history=true] { grid-template-rows: auto minmax(0, 1fr); }
+  .chat[data-history=true] .council { display: block; max-height: 40vh; }
+}

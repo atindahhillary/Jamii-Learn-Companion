@@ -9,6 +9,8 @@ import { Assignments } from "./assignments";
 import { Listen } from "./audio";
 import { Person } from "./avatars";
 import { Games } from "./games";
+import { Groups } from "./groups";
+import { PlanBuilder } from "./plan";
 
 function RolePlay({ onDone }: { onDone: () => void }) {
   const L = useL(), T = useT();
@@ -46,24 +48,27 @@ export function Learn() {
   const { data, failed, reload } = useData<LearnData>("/learn");
   const [open, setOpen] = useState<string | null>(null);
   const close = () => { setOpen(null); reload(); };
-  const [tab, setTab] = useState("trail");
+  const [tab, setTab] = useState("trail"), [editing, setEditing] = useState(false);
   if (open === "roleplay") return <RolePlay onDone={close} />;
   const m = MODULES.find((x) => x.id === open);
   if (failed) return <Failed retry={reload} />;
   if (!data) return <Loading />;
-  const done = data.progress.filter((p) => p.module_id !== "roleplay").length;
+  const inPlan = (id: string) => data.plan.some((p) => p.moduleId === id);
+  const done = data.progress.filter((p) => p.module_id !== "roleplay" && inPlan(p.module_id)).length;
   if (m) return <Lesson key={m.id} m={m} doneBefore={done - (data.progress.some((p) => p.module_id === m.id) ? 1 : 0)} onDone={close} />;
   return (
     <div className="page">
-      <h1>{L("Safari yako", "Your journey")}</h1>
-      <p className="muted lead">{L("Tembea na Mzee Sironka kijijini Enkare. Njia hii imepangwa kutokana na maswali na wasiwasi wa jamii yako.", "Walk with Mzee Sironka through Enkare village. This path follows your community's questions and worries.")}</p>
+      <h1>{data.goal ? L("Mpango wako wa kujifunza", "Your learning plan") : L("Safari yako", "Your journey")}</h1>
+      <p className="muted lead">{data.goal ? L("Masomo haya yamechaguliwa kutokana na ulichotuambia unataka kujifunza. Kila somo linaeleza kwa nini liko hapa.", "These lessons were picked from what you told us you want to learn. Each one says why it is here.") : L("Tembea na Mzee Sironka kijijini Enkare. Njia hii imepangwa kutokana na maswali na wasiwasi wa jamii yako.", "Walk with Mzee Sironka through Enkare village. This path follows your community's questions and worries.")}</p>
+      {editing ? <PlanBuilder start={data.goal} onCancel={() => setEditing(false)} onDone={() => { setEditing(false); reload(); }} />
+        : <div className="row"><button className="btn small" onClick={() => setEditing(true)}>{data.goal ? L("Badilisha mpango wangu", "Change my plan") : L("Niambie unachotaka kujifunza", "Tell us what you want to learn")}</button></div>}
       <div className="tabs" role="tablist">
-        {[["trail", L("Safari", "Journey")], ["work", L("Kazi zangu", "Assignments")], ["games", L("Michezo", "Games")]].map(([id, n]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{n}</button>)}
+        {[["trail", L("Safari", "Journey")], ["work", L("Kazi zangu", "Assignments")], ["groups", L("Makundi ninayofundisha", "Groups I teach")]].map(([id, n]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{n}</button>)}
       </div>
       {tab === "work" && <Assignments />}
-      {tab === "games" && <Games />}
+      {tab === "groups" && <Groups />}
       {tab === "trail" && <>
-      <section className="card land-card"><Land done={done} /><p className="land-note"><b>{L("Ardhi yako", "Your land")}</b> · {L(`miti ${done} kati ya ${MODULES.length}`, `${done} of ${MODULES.length} trees`)}</p></section>
+      <section className="card land-card"><Land done={done} total={data.plan.length} /><p className="land-note"><b>{L("Ardhi yako", "Your land")}</b> · {L(`miti ${done} kati ya ${data.plan.length}`, `${done} of ${data.plan.length} trees`)}</p></section>
       <Trail plan={data.plan} done={data.progress} onOpen={setOpen} onPlay={() => setOpen("roleplay")} />
       </>}
     </div>
@@ -109,6 +114,9 @@ export function Tools() {
           <p className="muted small">{L("Hakiki tafsiri ya mambo muhimu na mtu anayejua lugha zote mbili.", "Check translations of important matters with someone who knows both languages.")}</p>
         </section>
       </div>
+      <h2>{L("Michezo", "Games")}</h2>
+      <p className="muted">{L("Cheza michezo iliyo tayari, au geuza somo au maudhui yako mwenyewe kuwa mchezo, kwa lugha unayochagua.", "Play a ready-made game, or turn a lesson or your own content into a game, in the language you choose.")}</p>
+      <Games />
     </div>
   );
 }

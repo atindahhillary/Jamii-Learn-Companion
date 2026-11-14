@@ -5,8 +5,10 @@ import { AUDIENCES, COUNCIL, INTAKE, THEMES, type Audience, type Lang, type Them
 import { STARTERS, asText } from "../shared/council.js";
 import { MODULES } from "../shared/curriculum.js";
 import { MIN_GROUP, buildCurriculum, gapScores } from "./analyze.js";
-import { circleReply, intakeQuestion, nextLesson, respond, reviewDocument, saveInsight, translate, type BotUser, type Mode } from "./bot.js";
+import { circleReply, currentSession, intakeQuestion, makeGame, nextLesson, respond, reviewDocument, saveInsight, translate, type BotUser, type Mode } from "./bot.js";
 import { q } from "./db.js";
+import { cleanGoal, cleanGroup, makePlan, type Goal, type Group } from "../shared/plan.js";
+import { cleanGame, gameFromModule, type Game } from "../shared/games.js";
 import { audit, checkSecret, clean, decrypt, encrypt, hashSecret, limited, maskPhone, newToken, normalizePhone, phoneHash, pinProblem, redact, sha, verifyMetaSignature } from "./security.js";
 import { sendText, sendTemplate, waConfigured } from "./whatsapp.js";
 
@@ -97,6 +99,14 @@ app.post("/auth/logout", async (c) => {
   return c.json({ ok: true });
 });
 
+// Plans, groups, games and the current conversation number: small per-user JSON, deleted with the user.
+async function getStore<R>(userId: string, key: string, fallback: R): Promise<R> {
+  const [r] = await q<{ data: R }>("select data from user_store where user_id = $1 and key = $2", [userId, key]);
+  return r ? r.data : fallback;
+}
+const setStore = (userId: string, key: string, data: unknown) =>
+  q("insert into user_store (user_id, key, data) values ($1,$2,$3) on conflict (user_id, key) do update set data = excluded.data, updated_at = now()", [userId, key, JSON.stringify(data)]);
+
 app.get("/me", auth, async (c) => {
   const u = c.get("user");
   const [comm] = u.community_id ? await q("select name, county from communities where id = $1", [u.community_id]) : [];
@@ -111,14 +121,15 @@ app.patch("/me", auth, async (c) => {
 });
 app.get("/me/export", auth, async (c) => {
   const u = c.get("user");
-  const [messages, insights, progress, posts] = await Promise.all([
+  const [messages, insights, progress, posts, store] = await Promise.all([
     q("select channel, role, body, created_at from messages where user_id = $1 order by id", [u.id]),
     q("select body, theme, kind, created_at from insights where user_id = $1 order by id", [u.id]),
     q("select module_id, score, updated_at from progress where user_id = $1", [u.id]),
     q("select circle_id, body, created_at from posts where user_id = $1", [u.id]),
+    q("select key, data from user_store where user_id = $1", [u.id]),
   ]);
   await audit(u.id, "export_self");
-  return c.json({ profile: publicUser(u), messages, insights, progress, posts });
+  return c.json({ profile: publicUser(u), messages, insights, progress, posts, saved: Object.fromEntries(store.map((r: any) => [r.key, r.data])) });
 });
 app.delete("/me", auth, async (c) => {
   const u = c.get("user");
@@ -130,8 +141,8 @@ app.delete("/me", auth, async (c) => {
 
 app.get("/chat", auth, async (c) => {
   const u = c.get("user");
-  const history = await q("select id, role, expert, body, source, flagged, asks, created_at from messages where user_id = $1 order by id desc limit 60", [u.id]);
-  return c.json({ messages: history.reverse(), intakeQuestion: history.length ? null : intakeQuestion(u), starters: STARTERS.map((s) => s[u.lang as Lang]) });
+  const history = await q("select id, role, expert, body, source, flagged, asks, created_at from messages where user_id = $1 and session = $2 order by id desc limit 200", [u.id, await currentSession(u.id)]);
+  return c.json({ messages: history.reverse(), intakeQuestion: null, starters: STARTERS.map((s) => s[u.lang as Lang]) });
 });
 app.post("/chat", auth, async (c) => {
   const u = c.get("user");
@@ -139,7 +150,19 @@ app.post("/chat", auth, async (c) => {
   const b = await body(c), text = clean(b.text, 1500);
   if (!text) return c.json({ error: "fields" }, 400);
   const mode = (["ask", "analogy", "game"].includes(b.mode as string) ? b.mode : "ask") as Mode;
-  return c.json(await respond(u, text, "web", mode, clean(b.expert, 20) || undefined));
+  return c.json(await respond(u, text, "web", mode));
+});
+// Every conversation stays saved; "new conversation" only starts the next one.
+app.post("/chat/new", auth, async (c) => {
+  const u = c.get("user");
+  await setStore(u.id, "session", (await currentSession(u.id)) + 1);
+  return c.json({ ok: true });
+});
+app.get("/chat/transcripts", auth, async (c) => {
+  const rows = await q<{ session: number; role: string; body: string; created_at: string }>("select session, role, body, created_at from messages where user_id = $1 order by id", [c.get("user").id]);
+  const by = new Map<number, typeof rows>();
+  for (const r of rows) by.set(r.session, [...(by.get(r.session) ?? []), r]);
+  return c.json([...by.entries()].reverse().map(([session, m]) => ({ session, started: m[0].created_at, messages: m.map((x) => ({ role: x.role, body: x.body, at: x.created_at })) })));
 });
 app.post("/chat/flag", auth, async (c) => {
   const b = await body(c);
@@ -154,6 +177,10 @@ const planFor = async (communityId: number | null) => {
   ]);
   return buildCurriculum(gapScores(ins, prog));
 };
+const planOf = async (u: User) => {
+  const community = await planFor(u.community_id), goal = await getStore<Goal | null>(u.id, "goal", null);
+  return goal ? makePlan(goal, community) : community;
+};
 
 app.get("/learn", auth, async (c) => {
   const u = c.get("user");
@@ -163,7 +190,7 @@ app.get("/learn", auth, async (c) => {
     q(`select to_char(d, 'YYYY-MM-DD') as day, (select count(*)::int from messages m where m.user_id = $1 and m.role = 'user' and m.created_at::date = d::date) + (select count(*)::int from progress p where p.user_id = $1 and p.updated_at::date = d::date) as n
        from generate_series(now() - interval '6 days', now(), interval '1 day') d order by d`, [u.id]),
   ]);
-  return c.json({ progress, circles, activity: peers, plan: await planFor(u.community_id) });
+  return c.json({ progress, circles, activity: peers, plan: await planOf(u), goal: await getStore<Goal | null>(u.id, "goal", null) });
 });
 app.post("/learn/quiz", auth, async (c) => {
   const u = c.get("user"), b = await body(c);
@@ -185,7 +212,7 @@ app.post("/learn/ask", auth, async (c) => {
   const u = c.get("user");
   if (await limited(`chat:${u.id}`, 40, 3600)) return c.json({ error: "rate" }, 429);
   const text = clean((await body(c)).text, 800);
-  return text ? c.json(await respond(u, text, "web", "ask", undefined, true)) : c.json({ error: "fields" }, 400);
+  return text ? c.json(await respond(u, text, "web", "ask", true)) : c.json({ error: "fields" }, 400);
 });
 app.get("/assignments", auth, async (c) => c.json(await q("select id, module_id, body, feedback from assignments where user_id = $1 order by id", [c.get("user").id])));
 app.post("/assignments", auth, async (c) => {
@@ -199,6 +226,52 @@ app.post("/learn/practice", auth, async (c) => {
   const score = Math.max(0, Math.min(100, Number((await body(c)).score) || 0));
   await q("insert into progress (user_id, module_id, score) values ($1,'roleplay',$2) on conflict (user_id, module_id) do update set score = greatest(progress.score, excluded.score), updated_at = now()", [c.get("user").id, score]);
   return c.json({ ok: true });
+});
+
+app.get("/plan", auth, async (c) => {
+  const u = c.get("user");
+  return c.json({ goal: await getStore<Goal | null>(u.id, "goal", null), groups: await getStore<Group[]>(u.id, "groups", []), gaps: await planFor(u.community_id) });
+});
+app.post("/plan", auth, async (c) => {
+  const goal = cleanGoal(await body(c));
+  if (!goal) return c.json({ error: "fields" }, 400);
+  await setStore(c.get("user").id, "goal", goal);
+  return c.json({ ok: true });
+});
+// Facilitators keep their groups: members, needs, sessions and feedback.
+app.post("/groups", auth, async (c) => {
+  const u = c.get("user"), g = cleanGroup(await body(c));
+  if (!g) return c.json({ error: "fields" }, 400);
+  const groups = (await getStore<Group[]>(u.id, "groups", [])).filter((x) => x.id !== g.id);
+  if (groups.length >= 30) return c.json({ error: "limit" }, 400);
+  await setStore(u.id, "groups", [...groups, g]);
+  return c.json(g);
+});
+app.delete("/groups/:id", auth, async (c) => {
+  const u = c.get("user");
+  await setStore(u.id, "groups", (await getStore<Group[]>(u.id, "groups", [])).filter((x) => x.id !== c.req.param("id")));
+  return c.json({ ok: true });
+});
+app.get("/games", auth, async (c) => c.json(await getStore<Game[]>(c.get("user").id, "games", [])));
+app.post("/games", auth, async (c) => {
+  const u = c.get("user"), g = cleanGame(await body(c));
+  if (!g) return c.json({ error: "fields" }, 400);
+  await setStore(u.id, "games", [g, ...(await getStore<Game[]>(u.id, "games", [])).filter((x) => x.id !== g.id)].slice(0, 40));
+  return c.json(g);
+});
+app.delete("/games/:id", auth, async (c) => {
+  const u = c.get("user");
+  await setStore(u.id, "games", (await getStore<Game[]>(u.id, "games", [])).filter((x) => x.id !== c.req.param("id")));
+  return c.json({ ok: true });
+});
+app.post("/tools/game", auth, async (c) => {
+  const u = c.get("user");
+  if (await limited(`tool:${u.id}`, 20, 3600)) return c.json({ error: "rate" }, 429);
+  const b = await body(c), kind = b.kind === "quiz" ? "quiz" : "match", lang = clean(b.lang, 30) || u.lang;
+  const g = b.moduleId && (lang === "sw" || lang === "en") ? gameFromModule(String(b.moduleId), kind, lang)
+    : b.moduleId ? null
+    : await makeGame(u, clean(b.text, 6000), kind, lang, clean(b.title, 80) || (u.lang === "sw" ? "Mchezo wangu" : "My game"));
+  return g ? c.json(g) : c.json({ error: b.moduleId ? "needs_ai" : "too_little" }, 422);
 });
 
 app.post("/tools/review", auth, async (c) => {
@@ -290,7 +363,7 @@ async function handleWhatsApp(phone: string, text: string) {
   if (/^(somo|lesson)$/i.test(text)) return sendText(norm, nextLesson(prog.map((p) => p.module_id), lang) ?? WA.menu[lang]);
   if (/^(maendeleo|progress)$/i.test(text)) return sendText(norm, `${prog.filter((p) => p.module_id !== "roleplay").length}/${MODULES.length}`);
   const r = await respond(known, text, "whatsapp");
-  return sendText(norm, asText(r.replies, Object.fromEntries(COUNCIL.map((e) => [e.id, e.name[lang]]))));
+  return sendText(norm, asText(r.replies));
 }
 
 app.use("/admin/*", auth, admin);
