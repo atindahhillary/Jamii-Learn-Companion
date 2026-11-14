@@ -248,3 +248,21 @@ fieldset.chips { border: 0; margin: 0; }
 .group-card { text-align: left; } .group-card .grow { display: grid; gap: 2px; }
 .maa-list { max-height: 220px; overflow-y: auto; margin: 8px 0; } .maa-list li { padding: 3px 0; }
 details summary { cursor: pointer; font-weight: 600; margin-top: 6px; }
+
+/* Small screens: headers keep icons, drop words that do not fit */
+.thread-head { gap: 8px; } .thread-head > .row:first-child { min-width: 0; } .thread-head > .row:first-child > span { min-width: 0; }
+@media (max-width: 860px) {
+  .top { gap: 8px; flex-wrap: wrap; }
+  .top .pill { font-size: 0; gap: 0; padding: 6px; }
+  .thread-head { padding: 10px 12px; }
+  .thread-head .btn.small { font-size: 0; gap: 0; padding: 8px; min-width: 40px; min-height: 40px; justify-content: center; }
+  .thread-head small.block { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+}
+@media (max-width: 400px) {
+  .top > .person { display: none; }
+  .lang button { padding: 5px 9px; }
+  .page h1 { font-size: 1.5rem; }
+}
+.thread-head > .row:first-child { flex: 1 1 auto; } .thread-head > .row:last-child { flex: none; }
+.thread-head > .row:first-child b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page > .row { margin-bottom: 12px; }

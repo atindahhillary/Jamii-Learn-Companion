@@ -3,13 +3,13 @@ import { useState } from "react";
 import { AUDIENCES, type Audience } from "../shared/content";
 import { AudioToggle } from "./audio";
 import { Landscape, Mascot, useApp, useL, useT } from "./core";
-import { demoSignIn } from "./demo";
+
 
 export function DemoAuth() {
   const { refresh, lang, setLang } = useApp();
   const L = useL(), T = useT();
   const [name, setName] = useState(""), [audience, setAudience] = useState<Audience>("herder");
-  const enter = (role: "learner" | "admin") => { demoSignIn(role, name.trim().slice(0, 40), lang, audience); refresh(); };
+  const enter = async (role: "learner" | "admin") => { (await import("./demo")).demoSignIn(role, name.trim().slice(0, 40), lang, audience); refresh(); };
   return (
     <div className="auth">
       <section className="auth-hero">

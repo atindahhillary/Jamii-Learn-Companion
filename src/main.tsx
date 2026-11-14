@@ -1,15 +1,19 @@
-import { BarChart3, BookOpen, CircleUserRound, Download, Home, LogOut, MessageCircle, ShieldCheck, Users, Wrench } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BarChart3, BookOpen, CircleUserRound, Home, LogOut, MessageCircle, ShieldCheck, Users, Wrench } from "lucide-react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Lang } from "../shared/content";
-import { Admin } from "./admin";
 import { AudioToggle } from "./audio";
 import { Auth } from "./auth";
-import { Chat } from "./chat";
 import { Ctx, Avatar, DEMO, Loading, Mascot, api, installApp, useApp, useL, type Me } from "./core";
 import { DemoAuth } from "./demo-auth";
-import { Circles, Learn, Tools } from "./learn";
-import { HomePage, Profile } from "./home";
+// Each page loads only when opened, so the first screen arrives fast on a slow phone network.
+const Admin = lazy(() => import("./admin").then((m) => ({ default: m.Admin })));
+const Chat = lazy(() => import("./chat").then((m) => ({ default: m.Chat })));
+const Learn = lazy(() => import("./learn").then((m) => ({ default: m.Learn })));
+const Circles = lazy(() => import("./learn").then((m) => ({ default: m.Circles })));
+const Tools = lazy(() => import("./learn").then((m) => ({ default: m.Tools })));
+const HomePage = lazy(() => import("./home").then((m) => ({ default: m.HomePage })));
+const Profile = lazy(() => import("./home").then((m) => ({ default: m.Profile })));
 import "./styles.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -47,26 +51,12 @@ function Shell({ children }: { children: React.ReactNode }) {
           <Avatar name={me!.name} />
         </header>
         {DEMO && <p className="demo-bar">{L("Onyesho: data ya mfano ni ya kubuni, na unachoandika kinabaki kwenye kifaa hiki. AI ya moja kwa moja na WhatsApp hazijaunganishwa.", "Demo: sample data is fictional and what you type stays on this device. Live AI and WhatsApp are not connected.")}</p>}
-        <main id="main">{children}</main>
+        <main id="main"><Suspense fallback={<Loading />}>{children}</Suspense></main>
       </div>
     </div>
   );
 }
 
-export const InstallButton = () => {
-  const L = useL();
-  const [hint, setHint] = useState("");
-  return (
-    <>
-      <button className="btn ghost" onClick={async () => {
-        const r = await installApp();
-        if (r === "ios") setHint(L("Kwenye iPhone: bonyeza Share, kisha 'Add to Home Screen'.", "On iPhone: tap Share, then 'Add to Home Screen'."));
-        if (r === "manual") setHint(L("Fungua menyu ya kivinjari, kisha chagua 'Install app' au 'Add to Home screen'.", "Open the browser menu, then choose 'Install app' or 'Add to Home screen'."));
-      }}><Download size={18} aria-hidden /> {L("Weka kwenye simu", "Install on phone")}</button>
-      {hint && <p className="muted small" role="status">{hint}</p>}
-    </>
-  );
-};
 
 function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);

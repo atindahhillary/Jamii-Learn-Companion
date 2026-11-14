@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Lang, T } from "../shared/content";
 import { Person, lookFor } from "./avatars";
@@ -72,3 +73,18 @@ export async function installApp(): Promise<"done" | "ios" | "manual"> {
   if (promptEvent) { await promptEvent.prompt(); promptEvent = null; return "done"; }
   return /iphone|ipad/i.test(navigator.userAgent) ? "ios" : "manual";
 }
+
+export const InstallButton = () => {
+  const L = useL();
+  const [hint, setHint] = useState("");
+  return (
+    <>
+      <button className="btn ghost" onClick={async () => {
+        const r = await installApp();
+        if (r === "ios") setHint(L("Kwenye iPhone: bonyeza Share, kisha 'Add to Home Screen'.", "On iPhone: tap Share, then 'Add to Home Screen'."));
+        if (r === "manual") setHint(L("Fungua menyu ya kivinjari, kisha chagua 'Install app' au 'Add to Home screen'.", "Open the browser menu, then choose 'Install app' or 'Add to Home screen'."));
+      }}><Download size={18} aria-hidden /> {L("Weka kwenye simu", "Install on phone")}</button>
+      {hint && <p className="muted small" role="status">{hint}</p>}
+    </>
+  );
+};

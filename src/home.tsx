@@ -6,9 +6,8 @@ import { Dashboard } from "./groups";
 import { PlanBuilder } from "./plan";
 import { MODULES } from "../shared/curriculum";
 import { AreaChart } from "./charts";
-import { DEMO, Failed, Loading, Mascot, api, useApp, useData, useL, useT } from "./core";
+import { DEMO, Failed, InstallButton, Loading, Mascot, api, useApp, useData, useL, useT } from "./core";
 import { Land } from "./journey";
-import { InstallButton } from "./main";
 
 export type LearnData = {
   progress: { module_id: string; score: number }[]; circles: { id: number; name: string; topic: string; members: number }[];
