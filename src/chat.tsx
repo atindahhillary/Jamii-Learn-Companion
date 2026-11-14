@@ -73,7 +73,8 @@ export function Chat() {
   useEffect(() => {
     if (!data) return;
     setFollow(data.starters ?? []);
-    setMsgs(data.messages.length ? data.messages : [{ id: "q", role: "bot", body: T(HELLO) }]);
+    // Saved messages carry numeric ids; the screen compares them as text.
+    setMsgs(data.messages.length ? data.messages.map((m) => ({ ...m, id: String(m.id) })) : [{ id: "q", role: "bot", body: T(HELLO) }]);
   }, [data, lang]);
   useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [msgs, busy, planning]);
   // A question typed on the landing page is asked as soon as the chat is ready.

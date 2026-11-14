@@ -1,5 +1,5 @@
 import { BarChart3, BookOpen, CircleUserRound, Home, LogOut, MessageCircle, ShieldCheck, Users, Wrench, X } from "lucide-react";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Component, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Lang } from "../shared/content";
 import { AudioToggle } from "./audio";
@@ -7,13 +7,29 @@ import { Auth } from "./auth";
 import { Ctx, Avatar, DEMO, Loading, Mascot, api, installApp, useApp, useL, type Me } from "./core";
 import { DemoAuth } from "./demo-auth";
 // Each page loads only when opened, so the first screen arrives fast on a slow phone network.
-const Admin = lazy(() => import("./admin").then((m) => ({ default: m.Admin })));
-const Chat = lazy(() => import("./chat").then((m) => ({ default: m.Chat })));
-const Learn = lazy(() => import("./learn").then((m) => ({ default: m.Learn })));
-const Circles = lazy(() => import("./learn").then((m) => ({ default: m.Circles })));
-const Tools = lazy(() => import("./learn").then((m) => ({ default: m.Tools })));
-const HomePage = lazy(() => import("./home").then((m) => ({ default: m.HomePage })));
-const Profile = lazy(() => import("./home").then((m) => ({ default: m.Profile })));
+// A page left open across a deploy asks for files that no longer exist: reload once to get the new ones.
+const page = <M,>(get: () => Promise<M>) => () => get().catch((e) => {
+  try { if (!sessionStorage.getItem("jlc-reloaded")) { sessionStorage.setItem("jlc-reloaded", "1"); location.reload(); return new Promise<M>(() => {}); } } catch { /* storage blocked */ }
+  throw e;
+});
+// If a page still fails, show a way back instead of a blank screen.
+class PageGuard extends Component<{ children: ReactNode; label: string; retry: string }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e: unknown) { console.error("page failed", e); }
+  render() {
+    return this.state.failed
+      ? <div className="pad" role="alert"><p>{this.props.label}</p><button className="btn" onClick={() => { try { sessionStorage.removeItem("jlc-reloaded"); } catch { /* fine */ } location.reload(); }}>{this.props.retry}</button></div>
+      : this.props.children;
+  }
+}
+const Admin = lazy(page(() => import("./admin").then((m) => ({ default: m.Admin }))));
+const Chat = lazy(page(() => import("./chat").then((m) => ({ default: m.Chat }))));
+const Learn = lazy(page(() => import("./learn").then((m) => ({ default: m.Learn }))));
+const Circles = lazy(page(() => import("./learn").then((m) => ({ default: m.Circles }))));
+const Tools = lazy(page(() => import("./learn").then((m) => ({ default: m.Tools }))));
+const HomePage = lazy(page(() => import("./home").then((m) => ({ default: m.HomePage }))));
+const Profile = lazy(page(() => import("./home").then((m) => ({ default: m.Profile }))));
 import "./styles.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -53,7 +69,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <Avatar name={me!.name} />
         </header>
         {DEMO && !hideDemo && <p className="demo-bar"><span>{L("Onyesho: data ya mfano ni ya kubuni, na unachoandika kinabaki kwenye kifaa hiki. AI ya moja kwa moja na WhatsApp hazijaunganishwa.", "Demo: sample data is fictional and what you type stays on this device. Live AI and WhatsApp are not connected.")}</span><button className="icon" aria-label={L("Funga ujumbe", "Close notice")} onClick={() => { setHideDemo(true); try { localStorage.setItem("jlc-demo-bar", "1"); } catch { /* shows again next visit */ } }}><X size={16} aria-hidden /></button></p>}
-        <main id="main"><Suspense fallback={<Loading />}>{children}</Suspense></main>
+        <main id="main"><PageGuard key={route} label={L("Ukurasa huu haukupakia. Angalia mtandao kisha ujaribu tena.", "This page did not load. Check your connection and try again.")} retry={L("Jaribu tena", "Try again")}><Suspense fallback={<Loading />}>{children}</Suspense></PageGuard></main>
       </div>
     </div>
   );
@@ -66,6 +82,8 @@ function App() {
   const [route, setRoute] = useState(() => location.hash.slice(1));
   const refresh = () => api<Me>("/me").then((m) => { setMe(m); setLangState(m.lang); }).catch(() => setMe(null));
   useEffect(() => { refresh(); }, []);
+  // Once the app has run for a while, allow one more stale-file reload after the next deploy.
+  useEffect(() => { const t = setTimeout(() => { try { sessionStorage.removeItem("jlc-reloaded"); } catch { /* fine */ } }, 15000); return () => clearTimeout(t); }, []);
   useEffect(() => { const f = () => setRoute(location.hash.slice(1)); addEventListener("hashchange", f); return () => removeEventListener("hashchange", f); }, []);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   const setLang = (l: Lang) => {
