@@ -84,7 +84,7 @@ export async function respond(u: BotUser, raw: string, channel: "web" | "whatsap
     const msgs: Anthropic.MessageParam[] = history.slice(first).map((h) => ({ role: h.role === "bot" ? "assistant" as const : "user" as const, content: h.role === "bot" ? h.body : `<user_text>${h.body}</user_text>` }));
     const ask = mode === "analogy" ? "Give one vivid analogy from pastoral or village life." : mode === "game" ? "Give one short group game that teaches this, with no materials needed." : "Answer the question.";
     const notes = CARDS.map((c) => `[${c.id}] ${c.detail.en} (${c.source})`).join("\n");
-    const ai = await callClaude(`You are one companion who combines these specialists in a single answer: ${COUNCIL.map((e) => `${e.name.en} (${e.focus.en})`).join("; ")}. Weave their points into one reply, never separate voices.\nAudience: ${AUDIENCES[u.audience].en}. Reply in ${u.lang === "sw" ? "Kiswahili" : "English"}. ${ask}\nReference notes:\n${notes}`, msgs);
+    const ai = await callClaude(`You are one companion who combines these specialists in a single answer: ${COUNCIL.map((e) => `${e.name.en} (${e.focus.en})`).join("; ")}. Weave their points into one reply, never separate voices. Vary your wording and examples from earlier replies in this chat, but keep every fact within the reference notes.\nAudience: ${AUDIENCES[u.audience].en}. Reply in ${u.lang === "sw" ? "Kiswahili" : "English"}. ${ask}\nReference notes:\n${notes}`, msgs);
     if (ai) lead.body = ai;
   }
   const saved = [];

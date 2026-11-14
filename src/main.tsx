@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, CircleUserRound, Home, LogOut, MessageCircle, ShieldCheck, Users, Wrench } from "lucide-react";
+import { BarChart3, BookOpen, CircleUserRound, Home, LogOut, MessageCircle, ShieldCheck, Users, Wrench, X } from "lucide-react";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Lang } from "../shared/content";
@@ -20,6 +20,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   const { me, route, go, lang, setLang, refresh } = useApp();
   const L = useL();
   const isAdmin = me!.role === "admin";
+  // The demo notice can be closed, which gives the chat more room on a phone.
+  const [hideDemo, setHideDemo] = useState(() => { try { return localStorage.getItem("jlc-demo-bar") === "1"; } catch { return false; } });
   const nav = isAdmin
     ? [["admin", BarChart3, L("Dashibodi", "Dashboard")], ["circles", Users, L("Makundi", "Circles")], ["chat", MessageCircle, L("Msaidizi", "Assistant")], ["profile", CircleUserRound, L("Wasifu", "Profile")]]
     : [["home", Home, L("Nyumbani", "Home")], ["chat", MessageCircle, L("Msaidizi", "Assistant")], ["learn", BookOpen, L("Mafunzo", "Learn")], ["circles", Users, L("Makundi", "Circles")], ["tools", Wrench, L("Zana", "Tools")], ["profile", CircleUserRound, L("Wasifu", "Profile")]];
@@ -50,7 +52,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <Avatar name={me!.name} />
         </header>
-        {DEMO && <p className="demo-bar">{L("Onyesho: data ya mfano ni ya kubuni, na unachoandika kinabaki kwenye kifaa hiki. AI ya moja kwa moja na WhatsApp hazijaunganishwa.", "Demo: sample data is fictional and what you type stays on this device. Live AI and WhatsApp are not connected.")}</p>}
+        {DEMO && !hideDemo && <p className="demo-bar"><span>{L("Onyesho: data ya mfano ni ya kubuni, na unachoandika kinabaki kwenye kifaa hiki. AI ya moja kwa moja na WhatsApp hazijaunganishwa.", "Demo: sample data is fictional and what you type stays on this device. Live AI and WhatsApp are not connected.")}</span><button className="icon" aria-label={L("Funga ujumbe", "Close notice")} onClick={() => { setHideDemo(true); try { localStorage.setItem("jlc-demo-bar", "1"); } catch { /* shows again next visit */ } }}><X size={16} aria-hidden /></button></p>}
         <main id="main"><Suspense fallback={<Loading />}>{children}</Suspense></main>
       </div>
     </div>

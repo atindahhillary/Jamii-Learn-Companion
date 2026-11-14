@@ -266,3 +266,20 @@ details summary { cursor: pointer; font-weight: 600; margin-top: 6px; }
 .thread-head > .row:first-child { flex: 1 1 auto; } .thread-head > .row:last-child { flex: none; }
 .thread-head > .row:first-child b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .page > .row { margin-bottom: 12px; }
+
+/* Assistant on phones: more room for the conversation */
+.demo-bar { display: flex; gap: 8px; align-items: flex-start; } .demo-bar span { flex: 1; } .demo-bar .icon { flex: none; padding: 2px; min-height: 0; background: none; border: 0; }
+.messages { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.chips { scrollbar-width: none; } .chips::-webkit-scrollbar { display: none; }
+@media (max-width: 860px) {
+  .composer input, .hero-ask input, textarea, select, input { font-size: 16px; } /* below 16px iPhones zoom in on focus */
+  [data-look=plum] .demo-bar { margin-bottom: 4px; }
+  .chat { gap: 8px; padding: 6px 8px; }
+  .thread .messages { padding: 10px; }
+  .thread .bubble { max-width: 92%; }
+  .composer { padding: 8px 10px; }
+}
+@media (max-width: 400px) {
+  .thread-head small.block { display: none; }
+  .demo-bar { font-size: .74rem; padding: 5px 10px; }
+}

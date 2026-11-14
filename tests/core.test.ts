@@ -47,8 +47,30 @@ describe("council conversation", () => {
   it("answers a question asked instead of a listening answer", async () => {
     const { converse } = await import("../shared/council.js");
     const t = converse("Je, tunaweza kusema hapana?", { ...u, intake_step: 2 }, { pending: 2, n: 0 });
-    expect(t.answered).toBe(2);
+    expect(t.answered).toBeNull(); // a question does not use up the listening question
     expect(t.replies.some((r) => r.body.includes("kusema hapana"))).toBe(true);
+  });
+  it("always replies, handles greetings and app questions, and never decides for the community", async () => {
+    const { converse } = await import("../shared/council.js");
+    const en = { lang: "en" as const, audience: "herder" as const, intake_step: 1 };
+    for (const [i, q] of ["hello", "asante", "Who are you?", "how do I make a game?", "what about water rights?", "What is the price of maize?", "xyz qqq?", "Should we sign the contract?", "habari, nani hununua mikopo ya kaboni?"].entries()) {
+      const t = converse(q, en, { pending: 1, n: i });
+      expect(t.replies[0].body.trim().length, q).toBeGreaterThan(20);
+      expect(t.answered, q).toBeNull();
+    }
+    const water = converse("what about water rights?", en, { pending: null, n: 0 });
+    expect(water.replies[0].source).toContain("Jamii lesson");
+    const sign = converse("Should we sign the contract?", en, { pending: null, n: 0 }).replies[0].body;
+    expect(sign).toMatch(/cannot tell you to sign|not for an AI/);
+    expect(sign).not.toMatch(/you should sign|go ahead and sign/i);
+    expect(converse("What is the price of maize?", en, { pending: null, n: 0 }).replies[0].body).toContain("If you are asking about carbon");
+    expect(converse("tree planting is good", en, { pending: null, n: 0 }).replies[0].body).not.toContain("Help me get started");
+  });
+  it("words the same question differently from turn to turn", async () => {
+    const { converse } = await import("../shared/council.js");
+    const bodies = new Set([0, 1, 2, 3, 4, 5].map((n) => converse("CDA ni nini?", u, { pending: null, n }).replies[0].body));
+    expect(bodies.size).toBeGreaterThanOrEqual(4);
+    for (const b of bodies) expect(b).toContain("CDA");
   });
   it("gives an analogy without the extra points", async () => {
     const { converse, ALSO } = await import("../shared/council.js");
@@ -65,7 +87,7 @@ describe("council conversation", () => {
     const first = await (await post("/chat", { text: "Wazee wetu hupumzisha malisho kwa desturi" }, cookie)).json();
     expect(first.replies.at(-1).asks).toBe(1);
     const second = await (await post("/chat", { text: "Mgao wa mapato ni asilimia ngapi?" }, cookie)).json();
-    expect(second.intakeStep).toBe(2);
+    expect(second.intakeStep).toBe(1); // a question is answered without using up the listening question
     expect(second.replies).toHaveLength(1);
   });
   it("keeps every conversation and starts a new one on request", async () => {
