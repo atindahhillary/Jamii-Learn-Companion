@@ -1,4 +1,4 @@
-import { GLOSSARY, INTAKE, MUST_HAVES, RED_FLAGS, type Audience, type Lang } from "./content.js";
+import { INTAKE, type Audience, type Lang } from "./content.js";
 import { findCard } from "./council.js";
 import { MODULES } from "./curriculum.js";
 
@@ -29,11 +29,3 @@ export const intakeDone = {
   sw: "Asante sana kwa kushiriki. Sauti yako sasa ni sehemu ya mpango wa mafunzo ya jamii yako. Unaweza kuniuliza chochote, au uanze somo la kwanza.",
   en: "Thank you for sharing. Your voice now shapes your community's training plan. Ask me anything, or start the first lesson.",
 };
-
-export const reviewRules = (text: string, lang: Lang) => ({
-  flags: RED_FLAGS.filter((f) => f.re.test(text)).map((f) => ({ id: f.id, title: f.title[lang], ask: f.ask[lang] })),
-  missing: MUST_HAVES.filter((m) => !m.re.test(text)).map((m) => m.title[lang]),
-});
-
-export const glossaryFor = (text: string) =>
-  GLOSSARY.filter(([en, sw]) => text.toLowerCase().includes(en) || text.toLowerCase().includes(sw)).map(([en, sw]) => ({ en, sw }));

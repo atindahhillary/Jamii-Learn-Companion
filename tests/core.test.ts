@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { MODULES, CARDS } from "../shared/curriculum.js";
-import { RED_FLAGS, routeExpert } from "../shared/content.js";
+import { routeExpert } from "../shared/content.js";
 import { buildCurriculum, classify, gapScores } from "../server/analyze.js";
 import { app } from "../server/app.js";
 import { q } from "../server/db.js";
@@ -224,7 +224,6 @@ describe("rules", () => {
   it("routes to the council and flags risky terms", () => {
     expect(routeExpert("mgao wa pesa ni asilimia ngapi").id).toBe("mchambuzi");
     expect(routeExpert("mkataba na haki za ardhi").id).toBe("wakili");
-    expect(RED_FLAGS.find((f) => f.id === "costs")!.re.test("40% of net profit")).toBe(true);
   });
 });
 

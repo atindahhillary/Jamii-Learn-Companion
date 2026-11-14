@@ -1,7 +1,7 @@
 // Public demo: answers every /api path in the browser, so nothing leaves the visitor's device.
 import { AUDIENCES, INTAKE, THEMES, type Audience, type Lang, type Theme } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
-import { glossaryFor, offlineAnswer, reviewRules } from "../shared/answers";
+import { offlineAnswer } from "../shared/answers";
 import { MODELS_AI, isModel } from "../shared/models";
 import { cleanGoal, cleanGroup, makePlan, type Goal, type Group } from "../shared/plan";
 import { cleanGame, gameFromLesson, gameFromText, type Game } from "../shared/games";
@@ -203,8 +203,6 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     return done({ ok: true });
   }
   if (path === "/learn/practice") { s.progress.roleplay = { score: b.score, at: Date.now() }; return done({ ok: true }); }
-  if (path === "/tools/review") return { ...reviewRules(b.text, s.lang), summary: null };
-  if (path === "/tools/translate") return { text: null, glossary: glossaryFor(b.text) };
   if (path === "/plan" && method === "GET") return { goal: s.goal, groups: s.groups.map((g) => ({ ...g })), gaps: learnerGaps(s) };
   if (path === "/plan") { const g = cleanGoal(b); if (!g) throw fail("fields", 400); s.goal = g; return done({ ok: true }); }
   if (path === "/groups") { const g = cleanGroup(b); if (!g) throw fail("fields", 400); s.groups = [...s.groups.filter((x) => x.id !== g.id), g]; return done(g); }

@@ -185,7 +185,7 @@ export function Chat() {
             {pending && <button className="skip" onClick={() => send("RUKA")}>{L("Ruka swali hili", "Skip this question")}</button>}
             {follow.map((f) => <button key={f} onClick={() => send(f)}><Sparkles size={15} aria-hidden /> {f}</button>)}
             {lastUser && <button onClick={() => send(lastUser, "analogy")}><Lightbulb size={15} aria-hidden /> {L("Nipe mfano", "Give an analogy")}</button>}
-            {lastUser && <button onClick={() => send(lastUser, "game")}><Puzzle size={15} aria-hidden /> {L("Nipe mchezo", "Give a game")}</button>}
+            <button onClick={() => go("tools")}><Puzzle size={15} aria-hidden /> {L("Cheza mchezo", "Play a game")}</button>
           </div>
         )}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); send(text); }}>

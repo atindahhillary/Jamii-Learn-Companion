@@ -5,7 +5,7 @@ import { AUDIENCES, COUNCIL, INTAKE, THEMES, type Audience, type Lang, type Them
 import { STARTERS, asText } from "../shared/council.js";
 import { MODULES } from "../shared/curriculum.js";
 import { MIN_GROUP, buildCurriculum, gapScores } from "./analyze.js";
-import { circleReply, currentSession, intakeQuestion, makeGame, nextLesson, respond, reviewDocument, saveInsight, translate, type BotUser, type Mode } from "./bot.js";
+import { circleReply, currentSession, intakeQuestion, makeGame, nextLesson, respond, saveInsight, type BotUser, type Mode } from "./bot.js";
 import { q } from "./db.js";
 import { MODELS_AI, isModel } from "../shared/models.js";
 import { configured } from "./providers.js";
@@ -274,19 +274,6 @@ app.post("/tools/game", auth, async (c) => {
   const g = b.moduleId ? gameFromLesson(String(b.moduleId), kind, lang, u.lang as Lang)
     : await makeGame(u, clean(b.text, 6000), kind, lang, clean(b.title, 80) || (u.lang === "sw" ? "Mchezo wangu" : "My game"));
   return g ? c.json(g) : c.json({ error: b.moduleId ? "needs_ai" : "too_little" }, 422);
-});
-
-app.post("/tools/review", auth, async (c) => {
-  const u = c.get("user");
-  if (await limited(`tool:${u.id}`, 20, 3600)) return c.json({ error: "rate" }, 429);
-  const text = clean((await body(c)).text, 12000);
-  return text ? c.json(await reviewDocument(u, text)) : c.json({ error: "fields" }, 400);
-});
-app.post("/tools/translate", auth, async (c) => {
-  const u = c.get("user");
-  if (await limited(`tool:${u.id}`, 20, 3600)) return c.json({ error: "rate" }, 429);
-  const b = await body(c), text = clean(b.text, 2000);
-  return text ? c.json(await translate(u, text, b.to === "en" ? "en" : "sw")) : c.json({ error: "fields" }, 400);
 });
 
 const inCircle = async (id: number, uid: string) => (await q("select 1 from circle_members where circle_id = $1 and user_id = $2", [id, uid])).length > 0;

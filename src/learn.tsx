@@ -77,47 +77,13 @@ export function Learn() {
   );
 }
 
+// Tools is the home of every game: ready-made ones and ones made from a lesson or your own content.
 export function Tools() {
-  const { me } = useApp();
   const L = useL();
-  const [doc, setDoc] = useState(""), [review, setReview] = useState<any>(null), [busy, setBusy] = useState(false);
-  const [text, setText] = useState(""), [to, setTo] = useState<"sw" | "en">("en"), [out, setOut] = useState<any>(null);
   return (
     <div className="page">
-      <h1>{L("Zana za jamii", "Community tools")}</h1>
-      <div className="grid2">
-        <section className="card stack">
-          <h2>{L("Kagua mkataba", "Review a contract")}</h2>
-          <p className="muted small">{L("Bandika maandishi. Zana inakupa maswali ya kuuliza, si uamuzi. Ondoa majina na nambari za watu kwanza.", "Paste the text. The tool gives questions to ask, not a decision. Remove people's names and numbers first.")}</p>
-          <label className="sr" htmlFor="doc">{L("Maandishi ya mkataba", "Contract text")}</label>
-          <textarea id="doc" rows={9} value={doc} onChange={(e) => setDoc(e.target.value)} maxLength={12000} />
-          <button className="btn" disabled={busy || !doc.trim()} onClick={async () => { setBusy(true); setReview(await api("/tools/review", { body: { text: doc } }).catch(() => null)); setBusy(false); }}>{L("Kagua", "Review")}</button>
-          {review && <div role="status">
-            {review.summary && <p className="note">{review.summary}</p>}
-            <h3>{L("Maswali ya kuuliza", "Questions to ask")} ({review.flags.length})</h3>
-            <ul className="flags">{review.flags.map((f: any) => <li key={f.id}><b>{f.title}</b>{f.ask}</li>)}</ul>
-            {review.flags.length === 0 && <p className="muted small">{L("Hakuna alama zilizopatikana. Hii haimaanishi mkataba ni salama.", "No flags found. This does not mean the contract is safe.")}</p>}
-            <h3>{L("Haikuonekana kwenye maandishi", "Not seen in this text")}</h3>
-            <ul>{review.missing.map((x: string) => <li key={x}>{x}</li>)}</ul>
-            <p className="safety">{L("Ona wakili huru na jadili na jamii kabla ya kuamua.", "See an independent lawyer and discuss with the community before deciding.")}</p>
-          </div>}
-        </section>
-        <section className="card stack">
-          <h2>{L("Tafsiri", "Translate")}</h2>
-          <p className="muted small">{L("Kwa WhatsApp, barua pepe au mazungumzo na wazungumzaji wa Kiingereza.", "For WhatsApp, email or talking with English speakers.")}</p>
-          <label>{L("Tafsiri kwenda", "Translate to")}<select value={to} onChange={(e) => setTo(e.target.value as "sw" | "en")}><option value="en">English</option><option value="sw">Kiswahili</option></select></label>
-          <label className="sr" htmlFor="tr">{L("Maandishi", "Text")}</label>
-          <textarea id="tr" rows={5} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} />
-          <button className="btn" disabled={!text.trim()} onClick={async () => setOut(await api("/tools/translate", { body: { text, to } }).catch(() => null))}>{L("Tafsiri", "Translate")}</button>
-          {out && <div role="status">
-            {out.text ? <p className="note">{out.text}</p> : <p className="muted small">{DEMO ? L("Tafsiri ya AI haipo kwenye onyesho hili. Maneno muhimu yako hapa chini.", "AI translation is not in this demo. Key terms are below.") : me?.consentAi ? L("Tafsiri ya AI haipatikani sasa.", "AI translation is not available right now.") : L("Washa AI kwenye Wasifu ili kutafsiri. Maneno muhimu yako hapa chini.", "Turn on AI in Profile to translate. Key terms are below.")}</p>}
-            {out.glossary.length > 0 && <ul>{out.glossary.map((g: any) => <li key={g.en}><b>{g.en}</b>: {g.sw}</li>)}</ul>}
-          </div>}
-          <p className="muted small">{L("Hakiki tafsiri ya mambo muhimu na mtu anayejua lugha zote mbili.", "Check translations of important matters with someone who knows both languages.")}</p>
-        </section>
-      </div>
-      <h2>{L("Michezo", "Games")}</h2>
-      <p className="muted">{L("Cheza michezo iliyo tayari, au geuza somo au maudhui yako mwenyewe kuwa mchezo, kwa lugha unayochagua.", "Play a ready-made game, or turn a lesson or your own content into a game, in the language you choose.")}</p>
+      <h1>{L("Michezo", "Games")}</h1>
+      <p className="muted lead">{L("Cheza michezo iliyo tayari, au geuza somo au maudhui yako mwenyewe kuwa mchezo, kwa Kiswahili, Kiingereza au Maa.", "Play a ready-made game, or turn a lesson or your own content into a game, in Kiswahili, English or Maa.")}</p>
       <Games />
     </div>
   );

@@ -59,28 +59,6 @@ export const INTAKE: { theme: Theme; q: T }[] = [
   { theme: "fpic", q: o("Kama mradi ungekuja kesho, ungetaka nini kifanyike kabla ya jamii kukubali?", "If a project came tomorrow, what would you want done before the community agrees?") },
 ];
 
-// Patterns only ever raise questions. They never declare a contract safe.
-export const RED_FLAGS: { id: string; re: RegExp; title: T; ask: T }[] = [
-  { id: "forever", re: /perpetu|milele|99 years|miaka 99|irrevocabl/i, title: o("Muda usio na mwisho", "No end date"), ask: o("Mkataba unaisha lini, na tunatokaje?", "When does this end, and how can we exit?") },
-  { id: "exclusive", re: /exclusive|sole right|haki pekee/i, title: o("Haki za pekee", "Exclusive rights"), ask: o("Haki hizi zinazuia jamii kufanya nini?", "What do these rights stop the community from doing?") },
-  { id: "assign", re: /\bassign|transfer.{0,30}(right|carbon|credit)|kuhamisha|successors/i, title: o("Haki zinaweza kuhamishiwa mwingine", "Rights can pass to someone else"), ask: o("Je, wanaweza kuuza mkataba huu bila idhini yetu?", "Can they sell this deal without our approval?") },
-  { id: "costs", re: /net (profit|revenue|proceeds)|after (all )?(cost|expense|deduction)|less cost|baada ya gharama|faida halisi/i, title: o("Mgao baada ya gharama", "Share after costs"), ask: o("Gharama zipi zinaondolewa, zina kikomo, na nani anazikagua?", "Which costs come off, is there a cap, and who audits them?") },
-  { id: "grazing", re: /restrict|prohibit|no grazing|grazing (plan|management)|kuzuia|marufuku/i, title: o("Vizuizi vya matumizi ya ardhi", "Land use restrictions"), ask: o("Nini kinatokea wakati wa ukame au tunapohitaji kuhamisha mifugo?", "What happens in drought or when we must move livestock?") },
-  { id: "secret", re: /confidential|non-disclosure|\bsiri\b/i, title: o("Usiri", "Confidentiality"), ask: o("Je, jamii inaweza kuonyesha mkataba kwa wakili na wanachama wote?", "Can the community show this to a lawyer and all members?") },
-  { id: "foreign", re: /governed by the laws of (?!kenya)|arbitration in (?!kenya|nairobi)|london|singapore|new york/i, title: o("Mizozo nje ya Kenya", "Disputes outside Kenya"), ask: o("Tutawezaje kufika huko? Kwa nini isiwe Kenya?", "How would we get there? Why not Kenya?") },
-  { id: "penalty", re: /penalt|liquidated damages|indemnif|\bfaini\b|\bfidia\b/i, title: o("Adhabu kwa jamii", "Penalties on the community"), ask: o("Jamii inaweza kudaiwa kiasi gani, hasa kaboni ikipungua kwa ukame?", "How much could the community owe, especially if drought cuts carbon?") },
-  { id: "knowledge", re: /intellectual property|traditional knowledge|data.{0,20}(own|belong)|maarifa/i, title: o("Umiliki wa maarifa na data", "Ownership of knowledge and data"), ask: o("Nani anamiliki maarifa yetu na data ya ardhi yetu?", "Who owns our knowledge and our land data?") },
-];
-
-export const MUST_HAVES: { re: RegExp; title: T }[] = [
-  { re: /40\s*%|forty|asilimia (arobaini|40)|social contribution/i, title: o("Kiasi cha mgao wa jamii kimetajwa", "The community share is stated") },
-  { re: /annual report|yearly report|ripoti ya mwaka|\baudit/i, title: o("Ripoti ya mwaka au ukaguzi wa fedha", "Annual reports or financial audit") },
-  { re: /consent|fpic|ridhaa/i, title: o("Ridhaa ya jamii imetajwa", "Community consent is mentioned") },
-  { re: /terminat|\bexit|kusitisha/i, title: o("Njia ya kusitisha mkataba", "A way to end the agreement") },
-  { re: /grievance|dispute|malalamiko|mgogoro/i, title: o("Njia ya malalamiko", "A grievance process") },
-  { re: /drought|ukame|force majeure/i, title: o("Ukame umeshughulikiwa", "Drought is addressed") },
-];
-
 // Village meeting role play: exercise-based learning from the vision paper.
 export type Scene = { text: T; choices: { text: T; points: number; feedback: T }[] };
 export const ROLES: T[] = [o("Mwenyekiti wa jamii", "Community chair"), o("Mwakilishi wa wanawake", "Women's representative"), o("Kijana mfugaji", "Young herder"), o("Mwekezaji wa kaboni", "Carbon developer")];

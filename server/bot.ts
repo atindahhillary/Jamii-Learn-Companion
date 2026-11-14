@@ -1,4 +1,4 @@
-import { glossaryFor, intakeQuestion, offlineAnswer, reviewRules } from "../shared/answers.js";
+import { intakeQuestion, offlineAnswer } from "../shared/answers.js";
 import { converse, type Mode } from "../shared/council.js";
 import { AUDIENCES, COUNCIL, INTAKE, type Audience, type Lang, type Theme } from "../shared/content.js";
 import { cleanGame, gameFromText, type Game, type Kind } from "../shared/games.js";
@@ -67,21 +67,6 @@ export async function respond(u: BotUser, raw: string, channel: "web" | "whatsap
   }
   const main = saved.find((r) => r.source) ?? saved[0];
   return { replies: saved, followups: turn.followups, intakeStep: u.intake_step, id: main?.id, body: saved.map((r) => r.body).join("\n\n"), expert: main?.expert, source: main?.source ?? null, pic: saved.find((r) => r.pic)?.pic ?? null };
-}
-
-export async function reviewDocument(u: BotUser, raw: string) {
-  const text = redact(raw);
-  const { flags, missing } = reviewRules(text, u.lang);
-  const summary = u.consent_ai
-    ? await aiText(u, `Explain this agreement to a community member in ${u.lang === "sw" ? "Kiswahili" : "English"}: what the community gives, what it gets, and three questions to ask. Never say whether it is safe or whether to sign.`, [{ role: "user", content: `<document>${text}</document>` }], 900)
-    : null;
-  return { flags, missing, summary };
-}
-
-export async function translate(u: BotUser, raw: string, to: Lang) {
-  const text = redact(raw);
-  const ai = u.consent_ai ? await aiText(u, `Translate the text inside <user_text> into ${to === "sw" ? "Kiswahili" : "English"}. Keep it natural and plain. Output only the translation.`, [{ role: "user", content: `<user_text>${text}</user_text>` }], 900, "quick") : null;
-  return { text: ai, glossary: glossaryFor(text) };
 }
 
 // Circles: the bot speaks only when called, so people stay at the centre of the group.
