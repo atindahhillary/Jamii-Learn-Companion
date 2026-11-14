@@ -141,10 +141,9 @@ async function liveAi(s: State, r: ReturnType<typeof chat>, text: string, mode: 
   if (!s.consentAi || !reply || (!reply.source && !/\?/.test(text))) return r;
   if (!(await readiness()).find((m) => m.id === s.aiModel)?.ready) return r;
   const paras = reply.body.split("\n\n"), tail = reply.asks != null ? paras.slice(-2).join("\n\n") : "";
-  const draft = reply.asks != null ? paras.slice(0, -2).join("\n\n") : reply.body;
   const history = s.messages.filter((m) => m.id < reply.id - 1).slice(-6).map((m) => ({ role: m.role, body: m.body }));
   try {
-    const res = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json", "x-ky": "1" }, body: JSON.stringify({ model: s.aiModel, text: scrub(text), mode, lang: s.lang, audience: s.audience, draft, history }) });
+    const res = await fetch("/api/ai", { method: "POST", headers: { "content-type": "application/json", "x-ky": "1" }, body: JSON.stringify({ model: s.aiModel, text: scrub(text), mode, lang: s.lang, audience: s.audience, history }) });
     const j = res.ok ? await res.json() : null;
     if (!j?.text) return r;
     const body = tail ? `${j.text}\n\n${tail}` : j.text;
