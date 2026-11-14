@@ -6,8 +6,9 @@ import { Listen, audioOn, play, stop } from "./audio";
 import { Picture } from "./illustrations";
 import { DEMO, Failed, Loading, Mascot, api, useApp, useData, useL, useT } from "./core";
 import { PlanBuilder } from "./plan";
+import { MODELS_AI, modelInfo } from "../shared/models";
 
-type Msg = { id: string; role: string; expert?: string | null; body: string; source?: string | null; flagged?: boolean; pic?: string | null; asks?: number | null };
+type Msg = { id: string; role: string; expert?: string | null; body: string; source?: string | null; flagged?: boolean; pic?: string | null; asks?: number | null; model?: string | null };
 type Transcript = { session: number; started: string; messages: { role: string; body: string; at: string }[] };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : ms));
 
@@ -57,6 +58,28 @@ function Transcripts({ onOpen, refreshKey }: { onOpen: (t: Transcript) => void; 
           <button className="icon" aria-label={L("Pakua", "Download")} onClick={() => download(t)}><Download size={16} aria-hidden /></button>
         </li>
       ))}</ul>
+    </div>
+  );
+}
+
+// The learner chooses which AI model answers. Same rules and notes for all; prepared answers if it is not connected.
+function ModelPicker() {
+  const { me, refresh } = useApp();
+  const L = useL(), T = useT();
+  const [busy, setBusy] = useState(false);
+  const cur = modelInfo(me?.aiModel ?? "claude"), ready = me?.models?.find((m) => m.id === cur.id)?.ready;
+  return (
+    <div className="model-row">
+      <label>{L("Jibu kwa", "Answer with")}
+        <select value={cur.id} disabled={busy} onChange={async (e) => { setBusy(true); await api("/me", { method: "PATCH", body: { aiModel: e.target.value } }).catch(() => undefined); await refresh(); setBusy(false); }}>
+          {MODELS_AI.map((m) => <option key={m.id} value={m.id}>{m.name}{m.maker !== m.name ? ` (${m.maker})` : ""}{me?.models?.find((x) => x.id === m.id)?.ready ? "" : L(" · haijaunganishwa", " · not connected")}</option>)}
+        </select>
+      </label>
+      <small className="muted">{DEMO || !ready
+        ? L(`${cur.name} haijaunganishwa hapa, kwa hiyo unapata majibu yaliyoandaliwa yenye vyanzo.`, `${cur.name} is not connected here, so you get prepared, sourced answers.`)
+        : !me?.consentAi ? L("Washa AI kwenye Wasifu ili maswali yatumwe kwa modeli hii.", "Turn on AI in Profile to send questions to this model.")
+        : L(`Maswali yanatumwa kwa ${cur.maker} (${T(cur.where)}). Sheria zilezile na vyanzo vilevile.`, `Questions go to ${cur.maker} (${T(cur.where)}). Same rules and sources.`)}
+        {cur.id === "deepseek" && L(" Data inachakatwa China: hakikisha inaruhusiwa chini ya Sheria ya Ulinzi wa Data ya Kenya.", " Data is processed in China: check this is allowed under Kenya's Data Protection Act.")}</small>
     </div>
   );
 }
@@ -130,7 +153,7 @@ export function Chat() {
         <div className="messages" aria-live="polite">
           {shown.map((m) => (
             <div key={m.id} className={`bubble ${m.role === "user" ? "mine" : ""}`}>
-              {m.role !== "user" && <small className="who"><Mascot size={22} /> {L("Msaidizi wa Jamii", "Jamii Companion")}</small>}
+              {m.role !== "user" && <small className="who"><Mascot size={22} /> {L("Msaidizi wa Jamii", "Jamii Companion")}{m.id !== "q" && !reading && <span className="by">{m.model ? L(` · kwa ${modelInfo(m.model).name}`, ` · by ${modelInfo(m.model).name}`) : L(" · jibu lililoandaliwa", " · prepared answer")}</span>}</small>}
               <p>{m.body}</p>
               {m.pic && <Picture id={m.pic} />}
               {m.source && <small className="src">{L("Chanzo", "Source")}: {m.source}</small>}
@@ -149,6 +172,7 @@ export function Chat() {
           {busy && <div className="bubble typing" role="status"><Mascot size={22} /> {L("Msaidizi anaandika", "The companion is typing")}<span className="dots"><i /><i /><i /></span></div>}
           <div ref={end} />
         </div>
+        {!reading && <ModelPicker />}
         {error && <p className="error pad-x" role="alert">{error}</p>}
         {!busy && !reading && (
           <div className="chips" aria-label={L("Mapendekezo", "Suggestions")}>

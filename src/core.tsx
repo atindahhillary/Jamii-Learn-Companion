@@ -7,6 +7,7 @@ export type Me = {
   id: string; name: string; role: "learner" | "admin"; lang: Lang; audience: string; village: string | null;
   consentAi: boolean; consentShare: boolean; intakeStep: number; intakeTotal: number; phone: string;
   community: { name: string; county: string } | null; whatsapp: boolean;
+  aiModel?: string; models?: { id: string; ready: boolean }[];
 };
 
 export const DEMO = !!import.meta.env.VITE_DEMO;

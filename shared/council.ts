@@ -12,7 +12,7 @@ const MODULES_THEME_EXPERT: { expert: Record<Theme, string>; module: Record<Them
 
 export type Mode = "ask" | "analogy" | "game";
 export type Learner = { lang: Lang; audience: Audience; intake_step: number };
-export type Reply = { expert: string; body: string; source: string | null; pic: string | null; asks: number | null };
+export type Reply = { expert: string; body: string; source: string | null; pic: string | null; asks: number | null; model?: string | null };
 
 const pick = <X,>(list: X[], n: number) => list[Math.abs(n) % list.length];
 

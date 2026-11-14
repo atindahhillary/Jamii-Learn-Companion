@@ -79,7 +79,13 @@ Seven AI seats (Carbon Analyst, Community Lawyer, Knowledge Keeper, Rangeland Ec
 1. Create a Postgres database and set `DATABASE_URL`. Prefer a provider with verified TLS.
 2. Set `APP_SECRET` (32+ random characters). Changing it later makes stored phones unreadable.
 3. Create the first admin: `ADMIN_PHONE=... ADMIN_SECRET=... npm run make-admin`
-4. Optional: `ANTHROPIC_API_KEY` for AI answers. Default model is `claude-opus-5-5`; set `CLAUDE_MODEL` to change it and `MAX_AI_PER_DAY` to cap spend.
+4. Optional: AI models. Learners pick one in the Assistant ("Answer with"); every model gets the same rules and sourced notes, and one not set up falls back to the prepared answer. `MAX_AI_PER_DAY` caps all of them together.
+   - Claude: `ANTHROPIC_API_KEY` (default `claude-opus-5-5`, change with `CLAUDE_MODEL`; quick tasks use `CLAUDE_FAST_MODEL`, default `claude-haiku-5-5`)
+   - ChatGPT: `OPENAI_API_KEY` and `OPENAI_MODEL`
+   - Gemini: `GEMINI_API_KEY` and `GEMINI_MODEL` (Google's OpenAI-compatible endpoint)
+   - Grok: `XAI_API_KEY` and `XAI_MODEL`
+   - DeepSeek: `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` (data processed in China; check Kenya's Data Protection Act before enabling)
+   - ClimateGPT: `CLIMATEGPT_BASE_URL`, `CLIMATEGPT_API_KEY` and `CLIMATEGPT_MODEL` for an OpenAI-compatible endpoint you host (for example a Hugging Face endpoint)
 5. Deploy to Vercel. `vercel.json` carries the rewrites and security headers.
 
 ## Connecting WhatsApp

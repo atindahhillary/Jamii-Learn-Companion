@@ -7,6 +7,8 @@ import { MODULES } from "../shared/curriculum.js";
 import { MIN_GROUP, buildCurriculum, gapScores } from "./analyze.js";
 import { circleReply, currentSession, intakeQuestion, makeGame, nextLesson, respond, reviewDocument, saveInsight, translate, type BotUser, type Mode } from "./bot.js";
 import { q } from "./db.js";
+import { MODELS_AI, isModel } from "../shared/models.js";
+import { configured } from "./providers.js";
 import { cleanGoal, cleanGroup, makePlan, type Goal, type Group } from "../shared/plan.js";
 import { cleanGame, gameFromLesson, type Game } from "../shared/games.js";
 import { audit, checkSecret, clean, decrypt, encrypt, hashSecret, limited, maskPhone, newToken, normalizePhone, phoneHash, pinProblem, redact, sha, verifyMetaSignature } from "./security.js";
@@ -44,7 +46,7 @@ const admin = async (c: Context<Env>, next: () => Promise<void>) => {
   if (c.get("user").role !== "admin") { await audit(c.get("user").id, "admin_denied", c.req.path); return c.json({ error: "forbidden" }, 403); }
   await next();
 };
-const publicUser = (u: User) => ({ id: u.id, name: u.name, role: u.role, lang: u.lang, audience: u.audience, village: u.village, consentAi: u.consent_ai, consentShare: u.consent_share, intakeStep: u.intake_step, intakeTotal: INTAKE.length, phone: maskPhone(decrypt(u.phone_enc)) });
+const publicUser = (u: User) => ({ id: u.id, name: u.name, role: u.role, lang: u.lang, audience: u.audience, village: u.village, consentAi: u.consent_ai, consentShare: u.consent_share, aiModel: u.ai_model ?? "claude", intakeStep: u.intake_step, intakeTotal: INTAKE.length, phone: maskPhone(decrypt(u.phone_enc)) });
 
 async function communityId(name: string, county: string) {
   if (!name || !county) return null;
@@ -110,12 +112,13 @@ const setStore = (userId: string, key: string, data: unknown) =>
 app.get("/me", auth, async (c) => {
   const u = c.get("user");
   const [comm] = u.community_id ? await q("select name, county from communities where id = $1", [u.community_id]) : [];
-  return c.json({ ...publicUser(u), community: comm ?? null, whatsapp: waConfigured() });
+  return c.json({ ...publicUser(u), community: comm ?? null, whatsapp: waConfigured(), models: MODELS_AI.map((m) => ({ id: m.id, ready: configured(m.id) })) });
 });
 app.patch("/me", auth, async (c) => {
   const b = await body(c), u = c.get("user");
   await q("update users set lang = $1, audience = $2, consent_ai = $3, consent_share = $4, consent_at = now() where id = $5",
     [b.lang === "en" ? "en" : b.lang === "sw" ? "sw" : u.lang, clean(b.audience, 10) in AUDIENCES ? b.audience : u.audience, typeof b.consentAi === "boolean" ? b.consentAi : u.consent_ai, typeof b.consentShare === "boolean" ? b.consentShare : u.consent_share, u.id]);
+  if (isModel(b.aiModel)) await q("update users set ai_model = $1 where id = $2", [b.aiModel, u.id]);
   if (b.consentShare === false) await q("update insights set shareable = false where user_id = $1", [u.id]);
   return c.json({ ok: true });
 });
@@ -141,7 +144,7 @@ app.delete("/me", auth, async (c) => {
 
 app.get("/chat", auth, async (c) => {
   const u = c.get("user");
-  const history = await q("select id, role, expert, body, source, flagged, asks, created_at from messages where user_id = $1 and session = $2 order by id desc limit 200", [u.id, await currentSession(u.id)]);
+  const history = await q("select id, role, expert, body, source, flagged, asks, model, created_at from messages where user_id = $1 and session = $2 order by id desc limit 200", [u.id, await currentSession(u.id)]);
   return c.json({ messages: history.reverse(), intakeQuestion: null, starters: STARTERS.map((s) => s[u.lang as Lang]) });
 });
 app.post("/chat", auth, async (c) => {

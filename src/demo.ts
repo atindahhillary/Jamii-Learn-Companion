@@ -2,6 +2,7 @@
 import { AUDIENCES, INTAKE, THEMES, type Audience, type Lang, type Theme } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
 import { glossaryFor, offlineAnswer, reviewRules } from "../shared/answers";
+import { MODELS_AI, isModel } from "../shared/models";
 import { cleanGoal, cleanGroup, makePlan, type Goal, type Group } from "../shared/plan";
 import { cleanGame, gameFromLesson, gameFromText, type Game } from "../shared/games";
 import { STARTERS, converse, type Mode } from "../shared/council";
@@ -15,12 +16,12 @@ type Work = { id: number; module_id: string; body: string; feedback: string | nu
 type State = {
   role: "learner" | "admin" | null; name: string; lang: Lang; audience: Audience; consentShare: boolean; intakeStep: number;
   messages: Msg[]; insights: Insight[]; progress: Record<string, { score: number; at: number }>; posts: Post[]; nextId: number; work: Work[];
-  goal: Goal | null; groups: Group[]; games: Game[]; session: number;
+  goal: Goal | null; groups: Group[]; games: Game[]; session: number; aiModel: string;
 };
 
 const KEY = "jlc-demo", DAY = 86400_000;
 const fresh = (): State => ({
-  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000, goal: null, groups: [], games: [], session: 0,
+  role: null, name: "", lang: "sw", audience: "herder", consentShare: true, intakeStep: 0, messages: [], insights: [], progress: {}, nextId: 1000, goal: null, groups: [], games: [], session: 0, aiModel: "claude",
   work: [
     { id: 1, module_id: "m2", name: "Nasieku L.", feedback: null, body: "Nilimuuliza bibi yangu. Zamani eneo la juu lilipumzishwa wakati wa mvua. Sasa mifugo imeongezeka na eneo hilo halipumziki." },
     { id: 2, module_id: "m6", name: "Lekishon M.", feedback: null, body: "Nilipata 1.6m na 4m. Tofauti ni kubwa, kwa hiyo tutauliza orodha ya gharama kwenye mkutano." },
@@ -135,11 +136,12 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
   if (!s.role) throw fail("auth", 401);
   const admin = s.role === "admin";
 
-  if (path === "/me" && method === "GET") return { id: "demo", name: s.name, role: s.role, lang: s.lang, audience: s.audience, village: null, consentAi: false, consentShare: s.consentShare, intakeStep: stepOf(s), intakeTotal: INTAKE.length, phone: "", community: admin ? null : { name: "Jamii ya Mfano A", county: "Kajiado" }, whatsapp: false };
+  if (path === "/me" && method === "GET") return { id: "demo", name: s.name, role: s.role, lang: s.lang, audience: s.audience, village: null, consentAi: false, consentShare: s.consentShare, aiModel: s.aiModel, models: MODELS_AI.map((m) => ({ id: m.id, ready: false })), intakeStep: stepOf(s), intakeTotal: INTAKE.length, phone: "", community: admin ? null : { name: "Jamii ya Mfano A", county: "Kajiado" }, whatsapp: false };
   if (path === "/me" && method === "PATCH") {
     if (b.lang) s.lang = b.lang;
     if (b.audience in AUDIENCES) s.audience = b.audience;
     if (typeof b.consentShare === "boolean") s.consentShare = b.consentShare;
+    if (isModel(b.aiModel)) s.aiModel = b.aiModel;
     return done({ ok: true });
   }
   if (path === "/me/export") return { profile: { name: s.name, lang: s.lang, audience: s.audience }, messages: s.messages, insights: s.insights, progress: s.progress, goal: s.goal, groups: s.groups, games: s.games };

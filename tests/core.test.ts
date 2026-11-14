@@ -410,3 +410,34 @@ describe("plans, groups and games", () => {
     expect((await (await get("/me/export", cookie)).json()).saved.groups).toHaveLength(1);
   });
 });
+
+describe("choice of AI model", () => {
+  it("lets a learner pick a model, uses it when set up, and falls back to prepared answers otherwise", async () => {
+    const { cookie } = await register();
+    await app.request("/api/me", { method: "PATCH", headers: { ...H, cookie }, body: JSON.stringify({ aiModel: "not-a-model", consentAi: true }) });
+    expect((await (await get("/me", cookie)).json()).aiModel).toBe("claude");
+    await app.request("/api/me", { method: "PATCH", headers: { ...H, cookie }, body: JSON.stringify({ aiModel: "chatgpt" }) });
+    const me = await (await get("/me", cookie)).json();
+    expect(me.aiModel).toBe("chatgpt");
+    expect(me.models.find((m: any) => m.id === "chatgpt").ready).toBe(false);
+    // Not set up: the sourced answer, with no model named.
+    let r = await (await post("/chat", { text: "CDA ni nini?" }, cookie)).json();
+    expect(r.replies[0].model ?? null).toBeNull();
+    expect(r.source).toContain("reg 28");
+    // Set up: the model's reply replaces the prepared text and is labelled.
+    process.env.OPENAI_API_KEY = "test"; process.env.OPENAI_MODEL = "test-model";
+    const real = globalThis.fetch; let sent: any = null;
+    globalThis.fetch = (async (url: any, init: any) => {
+      if (String(url).startsWith("https://api.openai.com/v1/chat/completions")) { sent = JSON.parse(init.body); return new Response(JSON.stringify({ choices: [{ message: { content: "Jibu kutoka modeli" } }] }), { status: 200 }); }
+      return real(url, init);
+    }) as typeof fetch;
+    try { r = await (await post("/chat", { text: "Mgao wa mapato ni asilimia ngapi?" }, cookie)).json(); }
+    finally { globalThis.fetch = real; delete process.env.OPENAI_API_KEY; delete process.env.OPENAI_MODEL; }
+    expect(r.replies[0].model).toBe("chatgpt");
+    expect(r.replies[0].body).toBe("Jibu kutoka modeli");
+    expect(sent.model).toBe("test-model");
+    expect(sent.messages[0].content).toContain("Never tell anyone to sign"); // same rules for every model
+    expect(sent.messages[0].content).toContain("reg 29"); // same sourced notes
+    expect((await (await get("/chat", cookie)).json()).messages.at(-1).model).toBe("chatgpt");
+  });
+});
