@@ -76,6 +76,13 @@ export function Chat() {
     setMsgs(data.messages.length ? data.messages : [{ id: "q", role: "bot", body: T(HELLO) }]);
   }, [data, lang]);
   useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [msgs, busy, planning]);
+  // A question typed on the landing page is asked as soon as the chat is ready.
+  useEffect(() => {
+    if (!data) return;
+    let q: string | null = null;
+    try { q = sessionStorage.getItem("jlc-ask"); sessionStorage.removeItem("jlc-ask"); } catch { /* storage blocked */ }
+    if (q) send(q);
+  }, [data]);
 
   const send = async (body: string, mode = "ask") => {
     if (!body.trim() || busy) return;

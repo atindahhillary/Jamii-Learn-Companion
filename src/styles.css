@@ -234,3 +234,17 @@ fieldset.chips { border: 0; margin: 0; }
   .chat[data-history=true] { grid-template-rows: auto minmax(0, 1fr); }
   .chat[data-history=true] .council { display: block; max-height: 40vh; }
 }
+
+/* Landing ask box, progress dashboard, Maa list */
+.hero-ask { display: grid; gap: 12px; margin-bottom: 16px; }
+.hero-ask .composer { padding: 0; } .hero-ask .bubble p { margin: 0; } .hero-ask .big-title { margin-bottom: 4px; }
+.dash { margin-bottom: 16px; } .dash h3 { margin-top: 0; }
+.dash-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.dash-tiles div { background: var(--bg); border-radius: 12px; padding: 10px 12px; display: grid; }
+.dash-tiles b { font-size: 1.35rem; } .dash-tiles small { color: var(--muted); font-size: .78rem; }
+.bar-wrap { display: grid; gap: 4px; margin-top: 8px; width: 100%; }
+.bar { display: block; height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: #2f7d5b; border-radius: 99px; }
+.group-card { text-align: left; } .group-card .grow { display: grid; gap: 2px; }
+.maa-list { max-height: 220px; overflow-y: auto; margin: 8px 0; } .maa-list li { padding: 3px 0; }
+details summary { cursor: pointer; font-weight: 600; margin-top: 6px; }

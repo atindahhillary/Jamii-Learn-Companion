@@ -2,7 +2,7 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { THEMES, type Theme } from "../shared/content";
 import { MODULES } from "../shared/curriculum";
-import { groupNeeds, groupPlan, type Group } from "../shared/plan";
+import { LANGUAGES, LIVELIHOODS, emptyProfile, groupNeeds, groupPlan, groupProgress, type Group, type Profile } from "../shared/plan";
 import { Failed, Loading, api, useData, useL, useT } from "./core";
 
 type PlanData = { groups: Group[]; gaps: { moduleId: string; gap: number }[] };
@@ -25,10 +25,12 @@ export function Groups() {
   return (
     <div className="stack">
       <p className="muted">{L("Kwa wakufunzi na wanafunzi wa jamii: fuatilia kila kundi, mahitaji yao, vikao na maoni. Mpango wa vikao unabadilika kadri unavyoandika.", "For facilitators and community interns: track each group, its needs, sessions and feedback. The session plan changes as you write notes.")}</p>
+      <Dashboard groups={data.groups} gaps={data.gaps} />
       <div className="lessons">
         {data.groups.map((x) => {
-          const done = new Set(x.sessions.map((s) => s.moduleId)).size, plan = groupPlan(x, data.gaps);
-          return <button key={x.id} className="game card" onClick={() => setOpen(x.id)}><span><b>{x.name}</b><small className="muted">{x.members.length} {L("wanachama", "members")} · {L(`vikao ${done} kati ya ${plan.length}`, `${done} of ${plan.length} sessions`)}</small></span></button>;
+          const pr = groupProgress(x, data.gaps);
+          return <button key={x.id} className="game card group-card" onClick={() => setOpen(x.id)}><span className="grow"><b>{x.name}</b><small className="muted">{x.profile?.place || ""}{x.profile?.place ? " · " : ""}{x.members.length} {L("wanachama", "members")}</small>
+            <Bar percent={pr.percent} label={L(`Masomo ${pr.covered} kati ya ${pr.planned}`, `${pr.covered} of ${pr.planned} lessons`)} /></span></button>;
         })}
       </div>
       <form className="row" onSubmit={add}>
@@ -39,6 +41,30 @@ export function Groups() {
   );
 }
 
+const Bar = ({ percent, label }: { percent: number; label: string }) => (
+  <span className="bar-wrap"><span className="bar" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={label}><i style={{ width: `${percent}%` }} /></span><small className="muted">{label}</small></span>
+);
+
+// Across all groups: what a facilitator or supervisor looks at first.
+export function Dashboard({ groups, gaps }: { groups: Group[]; gaps: PlanData["gaps"] }) {
+  const L = useL();
+  if (!groups.length) return null;
+  const all = groups.map((g) => groupProgress(g, gaps));
+  const members = all.reduce((n, p) => n + p.members, 0), reached = all.reduce((n, p) => n + p.reached, 0);
+  const att = all.filter((p) => p.attendance != null);
+  const tiles = [
+    [String(groups.length), L("Makundi", "Groups")],
+    [`${reached}/${members}`, L("Wanachama waliofikiwa", "Members reached")],
+    [String(all.reduce((n, p) => n + p.sessions, 0)), L("Vikao vilivyofanyika", "Sessions held")],
+    [`${Math.round(all.reduce((n, p) => n + p.percent, 0) / all.length)}%`, L("Wastani wa safari", "Average journey done")],
+    [att.length ? `${Math.round(att.reduce((n, p) => n + (p.attendance ?? 0), 0) / att.length)}%` : "-", L("Mahudhurio", "Attendance")],
+  ];
+  return <section className="card dash" aria-label={L("Dashibodi ya maendeleo", "Progress dashboard")}>
+    <h3>{L("Dashibodi ya maendeleo", "Progress dashboard")}</h3>
+    <div className="dash-tiles">{tiles.map(([n, t]) => <div key={t}><b>{n}</b><small>{t}</small></div>)}</div>
+  </section>;
+}
+
 function GroupView({ g: start, gaps, onBack, onSaved }: { g: Group; gaps: PlanData["gaps"]; onBack: () => void; onSaved: () => void }) {
   const L = useL(), T = useT();
   const [g, setG] = useState(start), [state, setState] = useState<"" | "saved" | "error">("");
@@ -47,7 +73,7 @@ function GroupView({ g: start, gaps, onBack, onSaved }: { g: Group; gaps: PlanDa
     setG(next); setState("");
     try { setG(await api<Group>("/groups", { body: next })); setState("saved"); onSaved(); } catch { setState("error"); }
   };
-  const needs = groupNeeds(g), plan = groupPlan(g, gaps);
+  const needs = groupNeeds(g), plan = groupPlan(g, gaps), pr = groupProgress(g, gaps);
   const taught = (id: string) => g.sessions.filter((s) => s.moduleId === id);
   const nextStep = plan.find((p) => !taught(p.moduleId).length);
   return (
@@ -58,10 +84,24 @@ function GroupView({ g: start, gaps, onBack, onSaved }: { g: Group; gaps: PlanDa
       {state === "saved" && <p className="muted small" role="status">{L("Imehifadhiwa", "Saved")}</p>}
 
       <section className="card stack">
+        <h3>{L("Maendeleo", "Progress")}</h3>
+        <Bar percent={pr.percent} label={L(`Masomo ${pr.covered} kati ya ${pr.planned} ya safari`, `${pr.covered} of ${pr.planned} journey lessons`)} />
+        <div className="dash-tiles">
+          <div><b>{pr.sessions}</b><small>{L("Vikao", "Sessions")}</small></div>
+          <div><b>{pr.attendance == null ? "-" : `${pr.attendance}%`}</b><small>{L("Mahudhurio", "Attendance")}</small></div>
+          <div><b>{pr.reached}/{pr.members}</b><small>{L("Wamefikiwa", "Reached")}</small></div>
+          <div><b>{pr.last ? new Date(pr.last).toLocaleDateString() : "-"}</b><small>{L("Kikao cha mwisho", "Last session")}</small></div>
+        </div>
+      </section>
+
+      <CommunityProfile p={g.profile ?? emptyProfile()} onSave={(profile) => save({ ...g, profile })} />
+
+      <section className="card stack">
         <h3>{L("Mahitaji ya kundi", "Group needs")}</h3>
         <div className="chips wrap">{(Object.keys(THEMES) as Theme[]).map((t) => (
           <button key={t} className="choice" aria-pressed={g.needs.includes(t)} onClick={() => save({ ...g, needs: g.needs.includes(t) ? g.needs.filter((x) => x !== t) : [...g.needs, t] })}>{T(THEMES[t])}</button>
         ))}</div>
+        {needs.some((n) => n.from === "community") && <p className="muted small">{L("Kutoka kwa taarifa za jamii:", "From the community profile:")} {needs.filter((n) => n.from === "community").map((n) => T(THEMES[n.theme])).join(", ")}</p>}
         {needs.some((n) => n.from === "notes") && <p className="muted small">{L("Tumeyaona pia kwenye maelezo yako:", "Also picked up from your notes:")} {needs.filter((n) => n.from === "notes").map((n) => T(THEMES[n.theme])).join(", ")}</p>}
         <label>{L("Maelezo kuhusu kundi", "Notes about the group")}<textarea rows={3} maxLength={800} defaultValue={g.note} onBlur={(e) => e.target.value !== g.note && save({ ...g, note: e.target.value })} placeholder={L("Wanauliza nini? Wana wasiwasi gani?", "What do they ask? What worries them?")} /></label>
       </section>
@@ -119,4 +159,25 @@ function GroupView({ g: start, gaps, onBack, onSaved }: { g: Group; gaps: PlanDa
       <button className="btn danger" onClick={async () => { if (confirm(L("Futa kundi hili na kumbukumbu zake zote?", "Delete this group and all its records?"))) { await api(`/groups/${g.id}`, { method: "DELETE" }); onBack(); } }}><Trash2 size={16} aria-hidden /> {L("Futa kundi", "Delete group")}</button>
     </div>
   );
+}
+
+// Basic community knowledge, editable any time; the journey re-plans from it.
+function CommunityProfile({ p, onSave }: { p: Profile; onSave: (p: Profile) => void }) {
+  const L = useL(), T = useT();
+  const flip = (list: string[], x: string) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
+  const text = (k: "place" | "heard" | "worries" | "decides", label: string, rows = 2) => (
+    <label key={k}>{label}<textarea rows={rows} maxLength={600} defaultValue={p[k]} onBlur={(e) => e.target.value !== p[k] && onSave({ ...p, [k]: e.target.value })} /></label>
+  );
+  return <section className="card stack">
+    <h3>{L("Taarifa za jamii", "Community profile")}</h3>
+    {text("place", L("Mahali", "Place"), 1)}
+    <div className="chips wrap">{LANGUAGES.map((x) => <button key={x} className="choice" aria-pressed={p.languages.includes(x)} onClick={() => onSave({ ...p, languages: flip(p.languages, x) })}>{x}</button>)}</div>
+    <div className="chips wrap">{LIVELIHOODS.map((x) => <button key={x.id} className="choice" aria-pressed={p.livelihoods.includes(x.id)} onClick={() => onSave({ ...p, livelihoods: flip(p.livelihoods, x.id) })}>{T(x.name)}</button>)}</div>
+    <label>{L("Mradi wa kaboni umekuja?", "Has a carbon project come?")}<select value={p.project} onChange={(e) => onSave({ ...p, project: e.target.value as Profile["project"] })}>
+      <option value="">-</option><option value="yes">{L("Ndiyo", "Yes")}</option><option value="no">{L("Hapana", "No")}</option><option value="unsure">{L("Sina uhakika", "Not sure")}</option>
+    </select></label>
+    {text("heard", L("Wamesikia nini kuhusu kaboni?", "What have they heard about carbon?"))}
+    {text("worries", L("Wasiwasi wao", "Their worries"))}
+    {text("decides", L("Nani huamua kuhusu ardhi?", "Who decides about land?"))}
+  </section>;
 }

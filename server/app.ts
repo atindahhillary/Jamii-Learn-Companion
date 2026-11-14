@@ -8,7 +8,7 @@ import { MIN_GROUP, buildCurriculum, gapScores } from "./analyze.js";
 import { circleReply, currentSession, intakeQuestion, makeGame, nextLesson, respond, reviewDocument, saveInsight, translate, type BotUser, type Mode } from "./bot.js";
 import { q } from "./db.js";
 import { cleanGoal, cleanGroup, makePlan, type Goal, type Group } from "../shared/plan.js";
-import { cleanGame, gameFromModule, type Game } from "../shared/games.js";
+import { cleanGame, gameFromLesson, type Game } from "../shared/games.js";
 import { audit, checkSecret, clean, decrypt, encrypt, hashSecret, limited, maskPhone, newToken, normalizePhone, phoneHash, pinProblem, redact, sha, verifyMetaSignature } from "./security.js";
 import { sendText, sendTemplate, waConfigured } from "./whatsapp.js";
 
@@ -268,8 +268,7 @@ app.post("/tools/game", auth, async (c) => {
   const u = c.get("user");
   if (await limited(`tool:${u.id}`, 20, 3600)) return c.json({ error: "rate" }, 429);
   const b = await body(c), kind = b.kind === "quiz" ? "quiz" : "match", lang = clean(b.lang, 30) || u.lang;
-  const g = b.moduleId && (lang === "sw" || lang === "en") ? gameFromModule(String(b.moduleId), kind, lang)
-    : b.moduleId ? null
+  const g = b.moduleId ? gameFromLesson(String(b.moduleId), kind, lang, u.lang as Lang)
     : await makeGame(u, clean(b.text, 6000), kind, lang, clean(b.title, 80) || (u.lang === "sw" ? "Mchezo wangu" : "My game"));
   return g ? c.json(g) : c.json({ error: b.moduleId ? "needs_ai" : "too_little" }, 422);
 });

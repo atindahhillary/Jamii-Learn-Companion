@@ -3,6 +3,7 @@ import { glossaryFor, intakeQuestion, offlineAnswer, reviewRules } from "../shar
 import { converse, type Mode } from "../shared/council.js";
 import { AUDIENCES, COUNCIL, INTAKE, type Audience, type Lang, type Theme } from "../shared/content.js";
 import { cleanGame, gameFromText, type Game, type Kind } from "../shared/games.js";
+import { isMaa, maaPromptNotes } from "../shared/maa.js";
 import { CARDS, MODULES } from "../shared/curriculum.js";
 import { classify } from "./analyze.js";
 import { q } from "./db.js";
@@ -127,7 +128,7 @@ export async function makeGame(u: BotUser, raw: string, kind: Kind, lang: string
   const text = redact(raw);
   if (u.consent_ai) {
     const shape = kind === "match" ? '{"pairs":[["term","meaning"]]} with 4 to 8 pairs' : '{"questions":[{"q":"question","options":["a","b","c"],"answer":0}]} with 4 to 8 questions, answer = index of the right option';
-    const out = await callClaude(`Make a learning game from the content inside <user_text>, written in ${lang}. Use only facts in the content. Reply with JSON only, shaped ${shape}.`, [{ role: "user", content: `<user_text>${text}</user_text>` }], 1500, "quick");
+    const out = await callClaude(`Make a learning game from the content inside <user_text>, written in ${lang}. Use only facts in the content. Reply with JSON only, shaped ${shape}.${isMaa(lang) ? ` ${maaPromptNotes()}` : ""}`, [{ role: "user", content: `<user_text>${text}</user_text>` }], 1500, "quick");
     try {
       const g = cleanGame({ ...JSON.parse((out ?? "").replace(/^```(json)?|```$/g, "")), kind, lang, title, by: "ai" });
       if (g) return g;

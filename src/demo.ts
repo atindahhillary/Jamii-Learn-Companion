@@ -3,7 +3,7 @@ import { AUDIENCES, INTAKE, THEMES, type Audience, type Lang, type Theme } from 
 import { MODULES } from "../shared/curriculum";
 import { glossaryFor, offlineAnswer, reviewRules } from "../shared/answers";
 import { cleanGoal, cleanGroup, makePlan, type Goal, type Group } from "../shared/plan";
-import { cleanGame, gameFromModule, gameFromText, type Game } from "../shared/games";
+import { cleanGame, gameFromLesson, gameFromText, type Game } from "../shared/games";
 import { STARTERS, converse, type Mode } from "../shared/council";
 import { BOT_POST, CIRCLES, FIRST_POST, NAMES, SAYINGS } from "../shared/demo-data";
 import { MIN_GROUP, buildCurriculum, classify, gapScores, type Kind } from "../server/analyze";
@@ -188,7 +188,7 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
   if (path === "/tools/game") {
     const kind = b.kind === "quiz" ? "quiz" : "match", lang = String(b.lang || s.lang).slice(0, 30);
     // No live AI here: lessons work in Kiswahili and English, pasted text works in the language it is written in.
-    const g = b.moduleId ? (lang === "sw" || lang === "en" ? gameFromModule(b.moduleId, kind, lang) : null) : gameFromText(scrub(String(b.text ?? "").slice(0, 6000)), kind, lang, String(b.title || (s.lang === "sw" ? "Mchezo wangu" : "My game")).slice(0, 80));
+    const g = b.moduleId ? gameFromLesson(b.moduleId, kind, lang, s.lang) : gameFromText(scrub(String(b.text ?? "").slice(0, 6000)), kind, lang, String(b.title || (s.lang === "sw" ? "Mchezo wangu" : "My game")).slice(0, 80));
     if (!g) throw fail(b.moduleId ? "needs_ai" : "too_little", 422);
     return g;
   }

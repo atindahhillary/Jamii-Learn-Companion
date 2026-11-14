@@ -147,7 +147,10 @@ describe("public demo", () => {
     const game = await demoApi("/tools/game", "POST", { moduleId: "m6", kind: "quiz", lang: "en" });
     await demoApi("/games", "POST", game);
     expect((await demoApi("/games", "GET", {}))[0].questions.length).toBeGreaterThan(1);
-    await expect(demoApi("/tools/game", "POST", { moduleId: "m6", kind: "quiz", lang: "Maa" })).rejects.toThrow("needs_ai");
+    const maa = await demoApi("/tools/game", "POST", { moduleId: "m6", kind: "match", lang: "Maa" });
+    expect(maa.lang).toBe("Maa");
+    expect(maa.pairs[0][0]).toContain("(");
+    await expect(demoApi("/tools/game", "POST", { moduleId: "m6", kind: "quiz", lang: "Kikuyu" })).rejects.toThrow("needs_ai");
   });
 });
 
@@ -348,6 +351,25 @@ describe("plans, groups and games", () => {
     expect(gameFromText("too short", "quiz", "en", "x")).toBeNull();
     expect(gameFromModule("m1", "match", "sw")!.pairs.length).toBeGreaterThanOrEqual(2);
     expect(cleanGame({ kind: "quiz", questions: [{ q: "a", options: ["x"], answer: 3 }] })).toBeNull();
+  });
+  it("uses only dictionary Maa words, with a plain spelling and a gloss", async () => {
+    const { MAA, maaGame, isMaa } = await import("../shared/maa.js");
+    expect(new Set(MAA.map((w) => w.maa)).size).toBe(MAA.length);
+    for (const w of MAA) expect(w.plain && w.gloss.sw && w.gloss.en && w.themes.length).toBeTruthy();
+    expect(isMaa("Maasai") && isMaa("ol Maa") && !isMaa("Kiswahili")).toBe(true);
+    const q = maaGame("quiz", "benefits", "en", "x");
+    for (const x of q.questions) { expect(new Set(x.options).size).toBe(x.options.length); expect(x.options[x.answer]).toBeTruthy(); }
+    expect(q.questions[0].q).toContain("Maa word");
+  });
+  it("turns community knowledge into needs and tracks progress", async () => {
+    const { cleanGroup, groupNeeds, groupProgress } = await import("../shared/plan.js");
+    const g = cleanGroup({ name: "A", members: [{ name: "Amina" }, { name: "Sein" }], profile: { project: "yes", livelihoods: ["herding", "bogus"], worries: "Tunaogopa ardhi yetu itachukuliwa" }, sessions: [{ moduleId: "m1", attended: ["Amina"], at: 1 }] })!;
+    expect(g.profile.livelihoods).toEqual(["herding"]);
+    expect(groupNeeds(g).map((n) => n.theme)).toEqual(expect.arrayContaining(["fpic", "contracts", "benefits", "ecology", "land_rights"]));
+    const p = groupProgress(g);
+    expect(p.covered).toBe(1);
+    expect(p.attendance).toBe(50);
+    expect(p.reached).toBe(1);
   });
   it("saves plans, groups and games per user on the server", async () => {
     const { cookie } = await register(), other = await register();

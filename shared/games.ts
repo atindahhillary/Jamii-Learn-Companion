@@ -2,6 +2,7 @@
 // spaces between words; the server can ask an AI model instead, for languages and content the rules cannot read.
 import { GLOSSARY, type Lang } from "./content.js";
 import { MODULES } from "./curriculum.js";
+import { isMaa, maaGame } from "./maa.js";
 
 export type Kind = "match" | "quiz";
 export type Question = { q: string; options: string[]; answer: number };
@@ -71,4 +72,11 @@ export function cleanGame(g: any): Game | null {
     .filter((q: Question) => q.q && q.options.length >= 2 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length).slice(0, 10);
   if (g.kind === "match" ? pairs.length < 3 : questions.length < 2) return null;
   return { id: s(g.id, 40) || `g${Date.now().toString(36)}`, title: s(g.title, 80) || "Game", lang: s(g.lang, 30) || "sw", kind: g.kind, pairs: g.kind === "match" ? pairs : [], questions: g.kind === "quiz" ? questions : [], by: g.by === "ai" ? "ai" : "rules" };
+}
+
+// A lesson as a game: Kiswahili and English from the lesson itself, Maa from the checked word list.
+export function gameFromLesson(moduleId: string, kind: Kind, lang: string, uiLang: Lang): Game | null {
+  if (lang === "sw" || lang === "en") return gameFromModule(moduleId, kind, lang);
+  const m = MODULES.find((x) => x.id === moduleId);
+  return m && isMaa(lang) ? maaGame(kind, m.theme, uiLang, `${m.title[uiLang]} · Maa`) : null;
 }

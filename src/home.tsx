@@ -1,7 +1,9 @@
-import { BookOpenCheck, Flame, MessagesSquare, Sprout, Target } from "lucide-react";
+import { BookOpenCheck, Flame, MessagesSquare, Rocket, Send, Sprout, Target } from "lucide-react";
 import { useState } from "react";
 import { AUDIENCES, THEMES, type T } from "../shared/content";
-import type { Goal } from "../shared/plan";
+import type { Goal, Group } from "../shared/plan";
+import { Dashboard } from "./groups";
+import { PlanBuilder } from "./plan";
 import { MODULES } from "../shared/curriculum";
 import { AreaChart } from "./charts";
 import { DEMO, Failed, Loading, Mascot, api, useApp, useData, useL, useT } from "./core";
@@ -17,6 +19,8 @@ export function HomePage() {
   const { me, go } = useApp();
   const L = useL(), T = useT();
   const { data, failed, reload } = useData<LearnData>("/learn");
+  const groups = useData<{ groups: Group[]; gaps: { moduleId: string; gap: number }[] }>("/plan");
+  const [ask, setAsk] = useState(""), [planning, setPlanning] = useState(false);
   if (failed) return <Failed retry={reload} />;
   if (!data) return <Loading />;
   const done = data.progress.filter((p) => p.module_id !== "roleplay");
@@ -26,7 +30,7 @@ export function HomePage() {
   const nextM = MODULES.find((m) => m.id === next?.moduleId);
   const listening = me!.intakeStep < me!.intakeTotal;
   const stats = [
-    { icon: BookOpenCheck, n: `${done.length}/${MODULES.length}`, name: L("Vituo vya safari", "Journey stops"), tone: "lilac" },
+    { icon: BookOpenCheck, n: `${done.filter((d) => data.plan.some((p) => p.moduleId === d.module_id)).length}/${data.plan.length}`, name: L("Vituo vya safari", "Journey stops"), tone: "lilac" },
     { icon: Target, n: `${avg}%`, name: L("Wastani wa majaribio", "Quiz average"), tone: "pink" },
     { icon: Flame, n: `${days}/7`, name: L("Siku za kujifunza", "Learning days"), tone: "mint" },
     { icon: MessagesSquare, n: data.circles.length, name: L("Makundi yangu", "My circles"), tone: "butter" },
@@ -34,7 +38,20 @@ export function HomePage() {
   return (
     <div className="page">
       <h1>{L("Habari", "Hello")}, {me!.name.split(" ")[0]}!</h1>
-      <p className="muted lead">{L("Tujifunze pamoja leo.", "Let's learn together today.")}</p>
+      <section className="card hero-ask" aria-label={L("Msaidizi wa Jamii", "Jamii Companion")}>
+        <div className="line-row guide"><Mascot size={64} /><div className="bubble"><p className="big-title">{L("Unaweza kuniuliza chochote.", "You can ask me anything.")}</p><p>{L("Nikusaidie kuanza?", "Can I help you get started?")}</p></div></div>
+        <form className="composer" onSubmit={(e) => { e.preventDefault(); if (!ask.trim()) return; try { sessionStorage.setItem("jlc-ask", ask.trim()); } catch { /* chat just opens empty */ } go("chat"); }}>
+          <label className="sr" htmlFor="home-ask">{L("Uliza swali", "Ask a question")}</label>
+          <input id="home-ask" value={ask} maxLength={800} onChange={(e) => setAsk(e.target.value)} placeholder={L("Niulize chochote kuhusu kaboni, ardhi, mikataba...", "Ask me anything about carbon, land, contracts...")} />
+          <button className="send" aria-label={L("Uliza", "Ask")}><Send size={20} aria-hidden /></button>
+        </form>
+        {!planning && <div className="row">
+          <button className="btn" onClick={() => setPlanning(true)}><Rocket size={17} aria-hidden /> {data.goal ? L("Badilisha mpango", "Change the plan") : L("Ndiyo, nisaidie kuanza", "Yes, help me get started")}</button>
+          {data.goal && <button className="btn ghost" onClick={() => go("learn")}>{L("Fungua safari", "Open the journey")}</button>}
+        </div>}
+      </section>
+      {planning && <PlanBuilder start={data.goal} onCancel={() => setPlanning(false)} onDone={() => { setPlanning(false); reload(); groups.reload(); go("learn"); }} />}
+      {groups.data && groups.data.groups.length > 0 && <Dashboard groups={groups.data.groups} gaps={groups.data.gaps} />}
       {listening && (
         <button className="banner" onClick={() => go("chat")}><Mascot size={64} /><span><b>{L("Kwanza, tukusikilize", "First, let us listen to you")}</b><small>{L(`Maswali ${me!.intakeTotal - me!.intakeStep} yamebaki. Majibu yako yanaunda mafunzo ya jamii.`, `${me!.intakeTotal - me!.intakeStep} questions left. Your answers shape your community's training.`)}</small></span></button>
       )}

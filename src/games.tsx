@@ -5,6 +5,7 @@ import { Person } from "./avatars";
 import { Listen } from "./audio";
 import { MODULES } from "../shared/curriculum";
 import type { Game, Question } from "../shared/games";
+import { MAA, MAA_NOTE, MAA_SOURCE } from "../shared/maa";
 import { DEMO, api, useApp, useData, useL, useT } from "./core";
 
 const shuffle = <X,>(a: X[]) => a.map((v) => [Math.random(), v] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
@@ -158,8 +159,16 @@ function Maker({ onMade }: { onMade: (g: Game) => void }) {
       </>}
     <div className="two">
       <label>{L("Aina", "Type")}<select value={kind} onChange={(e) => setKind(e.target.value as "match" | "quiz")}><option value="quiz">{L("Maswali (jaza pengo)", "Quiz (fill the gap)")}</option><option value="match">{L("Linganisha jozi", "Match the pairs")}</option></select></label>
-      <label>{L("Lugha", "Language")}<select value={lang} onChange={(e) => setLang(e.target.value)}><option value="sw">Kiswahili</option><option value="en">English</option><option value="other">{L("Nyingine...", "Other...")}</option></select></label>
+      <label>{L("Lugha", "Language")}<select value={lang} onChange={(e) => setLang(e.target.value)}><option value="sw">Kiswahili</option><option value="en">English</option><option value="Maa">Maa (Kenya, Tanzania)</option><option value="other">{L("Nyingine...", "Other...")}</option></select></label>
     </div>
+    {lang === "Maa" && <div className="note small">
+      <p>{T(MAA_NOTE)}</p>
+      <p>{from === "lesson" ? L("Kutoka somo: mchezo wa maneno ya Maa ya mada hiyo, yakielezwa kwa lugha unayotumia.", "From a lesson: a game of Maa words on that topic, explained in your app language.") : L("Maudhui yako: andika kwa Maa, mfano 'ɛn-kɔ́p: ardhi'. Mchezo unatumia maneno yako kama yalivyo.", "Your content: write it in Maa, for example 'ɛn-kɔ́p: land'. The game uses your words as written.")}</p>
+      <details><summary>{L(`Maneno ${MAA.length} ya Maa yaliyohakikiwa na kamusi`, `${MAA.length} dictionary-checked Maa words`)}</summary>
+        <ul className="plain maa-list">{MAA.map((w) => <li key={w.maa}><b lang="mas">{w.maa}</b> <span className="muted">({w.plain})</span>: {T(w.gloss)}{w.note && <small className="muted"> · {T(w.note)}</small>}</li>)}</ul>
+        <small className="muted">{L("Chanzo", "Source")}: {MAA_SOURCE}</small>
+      </details>
+    </div>}
     {lang === "other" && <label>{L("Lugha gani?", "Which language?")}<input value={other} maxLength={30} onChange={(e) => setOther(e.target.value)} placeholder="Maa, Samburu, Kikuyu, Somali..." /></label>}
     {lang === "other" && <p className="muted small">{DEMO ? L("Kwenye onyesho hili mchezo unatumia maandishi yako kama yalivyo. Kwa AI ya moja kwa moja, inaweza kuandika mchezo kwa lugha hiyo. Mtu anayeijua lugha ahakiki.", "In this demo the game uses your text as written. With live AI it can write the game in that language. Have a speaker of the language check it.") : L("AI itaandika mchezo kwa lugha hiyo. Mtu anayeijua lugha ahakiki kabla ya kutumia na kundi.", "The AI writes the game in that language. Have a speaker check it before using it with a group.")}</p>}
     {err && <p className="error" role="alert">{err}</p>}

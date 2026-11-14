@@ -9,7 +9,15 @@ export type Level = "new" | "some" | "deep";
 export type Goal = { forWhom: "me" | "group"; themes: Theme[]; level: Level; minutes: number; note: string };
 export type Member = { name: string; note: string };
 export type Session = { moduleId: string; at: number; attended: string[]; feedback: string };
-export type Group = { id: string; name: string; members: Member[]; needs: Theme[]; note: string; sessions: Session[] };
+// What a facilitator records about the community first, before any journey is built.
+export type Profile = { place: string; languages: string[]; livelihoods: string[]; heard: string; worries: string; decides: string; project: "" | "yes" | "no" | "unsure" };
+export type Group = { id: string; name: string; members: Member[]; needs: Theme[]; note: string; sessions: Session[]; profile: Profile };
+export const LANGUAGES = ["Maa", "Kiswahili", "English", "Samburu"];
+export const LIVELIHOODS: { id: string; name: T }[] = [
+  { id: "herding", name: o("Ufugaji", "Herding") }, { id: "farming", name: o("Kilimo", "Farming") },
+  { id: "conservancy", name: o("Hifadhi au utalii", "Conservancy or tourism") }, { id: "business", name: o("Biashara, ushanga", "Business, beadwork") },
+];
+export const emptyProfile = (): Profile => ({ place: "", languages: [], livelihoods: [], heard: "", worries: "", decides: "", project: "" });
 export type Step = { moduleId: string; theme: Theme; order: number; week: number; minutes: number; reason: T; guide: { activity: T; discuss: T } | null };
 
 const ALL = Object.keys(THEMES) as Theme[];
@@ -55,11 +63,27 @@ export function makePlan(goal: Goal, gaps: { moduleId: string; gap: number }[] =
 }
 
 // A group's needs grow from what the facilitator records: picked needs, notes, member notes and session feedback.
-export function groupNeeds(g: Group): { theme: Theme; from: "picked" | "notes" }[] {
-  const picked = g.needs.map((theme) => ({ theme, from: "picked" as const }));
-  const heard = themesFromText([g.note, ...g.members.map((m) => m.note), ...g.sessions.map((s) => s.feedback)].join("\n"))
-    .filter((t) => !g.needs.includes(t)).map((theme) => ({ theme, from: "notes" as const }));
-  return [...picked, ...heard];
+export function groupNeeds(g: Group): { theme: Theme; from: "picked" | "community" | "notes" }[] {
+  const out: { theme: Theme; from: "picked" | "community" | "notes" }[] = g.needs.map((theme) => ({ theme, from: "picked" }));
+  const add = (themes: Theme[], from: "community" | "notes") => { for (const theme of themes) if (!out.some((x) => x.theme === theme)) out.push({ theme, from }); };
+  const p = g.profile ?? emptyProfile();
+  // A project already on the table makes consent, the agreement and the money urgent; herders need the grazing lesson.
+  add([...(p.project === "yes" ? ["fpic", "contracts", "benefits"] as Theme[] : []), ...(p.livelihoods.includes("herding") ? ["ecology"] as Theme[] : []), ...themesFromText([p.heard, p.worries, p.decides].join("\n"))], "community");
+  add(themesFromText([g.note, ...g.members.map((m) => m.note), ...g.sessions.map((s) => s.feedback)].join("\n")), "notes");
+  return out;
+}
+
+// Progress for the facilitator dashboard, all derived from the logged sessions.
+export function groupProgress(g: Group, gaps: { moduleId: string; gap: number }[] = []) {
+  const plan = groupPlan(g, gaps), taught = new Set(g.sessions.map((s) => s.moduleId));
+  const covered = plan.filter((p) => taught.has(p.moduleId)).length;
+  const seats = g.sessions.length * g.members.length, came = g.sessions.reduce((n, s) => n + s.attended.length, 0);
+  return {
+    planned: plan.length, covered, percent: plan.length ? Math.round((covered / plan.length) * 100) : 0,
+    sessions: g.sessions.length, attendance: seats ? Math.round((came / seats) * 100) : null,
+    reached: g.members.filter((m) => g.sessions.some((s) => s.attended.includes(m.name))).length, members: g.members.length,
+    last: g.sessions.length ? Math.max(...g.sessions.map((s) => s.at)) : null,
+  };
 }
 
 export const groupPlan = (g: Group, gaps: { moduleId: string; gap: number }[] = []) =>
@@ -80,6 +104,12 @@ export function cleanGroup(b: any): Group | null {
   if (!name) return null;
   return {
     id: str(b.id, 40) || `g${Date.now().toString(36)}`, name, note: str(b.note, 800),
+    profile: {
+      place: str(b.profile?.place, 80), heard: str(b.profile?.heard, 600), worries: str(b.profile?.worries, 600), decides: str(b.profile?.decides, 400),
+      languages: (Array.isArray(b.profile?.languages) ? b.profile.languages : []).map((x: unknown) => str(x, 30)).filter(Boolean).slice(0, 6),
+      livelihoods: (Array.isArray(b.profile?.livelihoods) ? b.profile.livelihoods : []).filter((x: unknown) => LIVELIHOODS.some((l) => l.id === x)),
+      project: ["yes", "no", "unsure"].includes(b.profile?.project) ? b.profile.project : "",
+    },
     needs: (Array.isArray(b.needs) ? b.needs : []).filter(isTheme).slice(0, 8),
     members: (Array.isArray(b.members) ? b.members : []).slice(0, 60).map((m: any) => ({ name: str(m?.name, 40), note: str(m?.note, 400) })).filter((m: Member) => m.name),
     sessions: (Array.isArray(b.sessions) ? b.sessions : []).slice(-100).filter((s: any) => MODULES.some((m) => m.id === s?.moduleId))

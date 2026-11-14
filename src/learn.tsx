@@ -48,13 +48,15 @@ export function Learn() {
   const { data, failed, reload } = useData<LearnData>("/learn");
   const [open, setOpen] = useState<string | null>(null);
   const close = () => { setOpen(null); reload(); };
-  const [tab, setTab] = useState("trail"), [editing, setEditing] = useState(false);
+  const [chosen, setTab] = useState<string | null>(null), [editing, setEditing] = useState(false);
   if (open === "roleplay") return <RolePlay onDone={close} />;
   const m = MODULES.find((x) => x.id === open);
   if (failed) return <Failed retry={reload} />;
   if (!data) return <Loading />;
   const inPlan = (id: string) => data.plan.some((p) => p.moduleId === id);
   const done = data.progress.filter((p) => p.module_id !== "roleplay" && inPlan(p.module_id)).length;
+  // Facilitators land on their groups; everyone else on their own journey.
+  const tab = chosen ?? (data.goal?.forWhom === "group" ? "groups" : "trail");
   if (m) return <Lesson key={m.id} m={m} doneBefore={done - (data.progress.some((p) => p.module_id === m.id) ? 1 : 0)} onDone={close} />;
   return (
     <div className="page">
