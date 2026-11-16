@@ -119,9 +119,10 @@ export function reply(raw: string): Out {
 
 // Meta's one-time check when the webhook address is saved in the app dashboard.
 export function GET(req: Request) {
-  const u = new URL(req.url), token = process.env.WA_VERIFY_TOKEN;
+  // Trimmed on both sides: a pasted value often carries an invisible space or line break.
+  const u = new URL(req.url), token = process.env.WA_VERIFY_TOKEN?.trim();
   // Logged without the phrase itself, so a failed setup can be diagnosed from the Vercel logs.
-  if (token && u.searchParams.get("hub.mode") === "subscribe" && u.searchParams.get("hub.verify_token") === token) { console.log("whatsapp verify: ok"); return new Response(u.searchParams.get("hub.challenge") ?? "", { status: 200 }); }
+  if (token && u.searchParams.get("hub.mode") === "subscribe" && u.searchParams.get("hub.verify_token")?.trim() === token) { console.log("whatsapp verify: ok"); return new Response(u.searchParams.get("hub.challenge") ?? "", { status: 200 }); }
   console.log("whatsapp verify: failed", !token ? "(WA_VERIFY_TOKEN not set)" : "(phrase does not match)");
   return new Response("forbidden", { status: 403 });
 }
