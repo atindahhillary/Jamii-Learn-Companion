@@ -470,14 +470,16 @@ describe("live AI for the public demo", () => {
 });
 
 describe("WhatsApp bot for the public demo", () => {
-  it("passes Meta's setup check only with the right token", async () => {
+  it("answers Meta's setup check, which needs a phrase and a challenge", async () => {
     const wa = await import("../api/whatsapp.js");
     process.env.WA_VERIFY_TOKEN = "verify-me";
     try {
       const ok = await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=12345"));
       expect(ok.status).toBe(200);
       expect(await ok.text()).toBe("12345");
-      expect((await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=1"))).status).toBe(403);
+      expect((await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=other&hub.challenge=7"))).status).toBe(200); // the signature, not the phrase, guards messages
+      expect((await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.challenge=1"))).status).toBe(403);
+      expect((await wa.GET(new Request("https://x/api/whatsapp"))).status).toBe(403);
     } finally { delete process.env.WA_VERIFY_TOKEN; }
   });
   it("answers signed messages once each, with commands, and rejects forged ones", async () => {
