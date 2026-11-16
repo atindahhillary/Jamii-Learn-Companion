@@ -219,7 +219,11 @@ export async function demoApi(path: string, method: string, b: any): Promise<any
     if (!g) throw fail(b.moduleId ? "needs_ai" : "too_little", 422);
     return g;
   }
-  if (path === "/whatsapp/link") throw fail("not_configured", 503);
+  if (path === "/whatsapp/link") {
+    const n = await fetch("/api/ai").then((r) => (r.ok ? r.json() : null)).then((j) => j?.whatsapp ?? null).catch(() => null);
+    if (!n) throw fail("not_configured", 503);
+    return { url: `https://wa.me/${n}?text=${encodeURIComponent(s.lang === "sw" ? "menyu" : "menu")}` };
+  }
 
   const posts = path.match(/^\/circles\/(\d+)\/posts$/);
   if (posts && method === "GET") return s.posts.filter((p) => p.circle === +posts[1] && !p.hidden).reverse().map((p) => ({ ...p }));

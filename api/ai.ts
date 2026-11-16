@@ -34,7 +34,8 @@ const clientIp = (req: Request) => req.headers.get("x-vercel-forwarded-for")?.sp
 const tagSafe = (t: string) => t.replace(/<\/?(user_text|chat_history|prepared_answer)>/gi, "");
 
 export function GET() {
-  return json({ models: MODELS_AI.map((m) => ({ id: m.id, ready: configured(m.id) })) });
+  const wa = (process.env.WA_BOT_NUMBER || "").replace(/\D/g, "");
+  return json({ models: MODELS_AI.map((m) => ({ id: m.id, ready: configured(m.id) })), whatsapp: wa && process.env.WA_TOKEN ? wa : null });
 }
 
 export async function POST(req: Request) {

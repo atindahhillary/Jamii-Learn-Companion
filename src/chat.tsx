@@ -27,9 +27,13 @@ function WhatsAppDialog({ onClose }: { onClose: () => void }) {
     <dialog ref={ref} onClose={onClose} className="dialog">
       <form onSubmit={go}>
         <div className="row-between"><h3>{L("Hamia WhatsApp", "Move to WhatsApp")}</h3><button type="button" className="icon" aria-label={L("Funga", "Close")} onClick={onClose}><X size={20} /></button></div>
-        <p className="muted">{L("Weka nambari yako. Tutafungua WhatsApp na mazungumzo yataendelea huko.", "Key in your number. We open WhatsApp and the chat continues there.")}</p>
-        <label>{L("Nambari ya WhatsApp", "WhatsApp number")}<input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder={me?.phone} required /></label>
-        {state === "off" && <p className="error" role="alert">{L("WhatsApp bado haijaunganishwa kwenye onyesho hili. Inahitaji nambari ya biashara iliyoidhinishwa.", "WhatsApp is not connected yet. It needs an approved business number.")}</p>}
+        {DEMO
+          ? <p className="muted">{L("Tutafungua WhatsApp kwenye simu yako na mazungumzo na Msaidizi wa Jamii. Tumia WhatsApp yako ya kawaida; huhitaji akaunti ya biashara. Ujumbe unapita kupitia WhatsApp (Meta).", "We open WhatsApp on your phone with a chat to the Jamii Companion. Use your normal WhatsApp; you do not need a business account. Messages pass through WhatsApp (Meta).")}</p>
+          : <>
+            <p className="muted">{L("Weka nambari yako. Tutafungua WhatsApp na mazungumzo yataendelea huko.", "Key in your number. We open WhatsApp and the chat continues there.")}</p>
+            <label>{L("Nambari ya WhatsApp", "WhatsApp number")}<input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder={me?.phone} required /></label>
+          </>}
+        {state === "off" && <p className="error" role="alert">{L("WhatsApp ya Msaidizi bado haijawashwa. Jaribu tena baadaye.", "The Companion's WhatsApp is not switched on yet. Try again later.")}</p>}
         {state === "mismatch" && <p className="error" role="alert">{L("Tumia nambari uliyojisajili nayo.", "Use the number you registered with.")}</p>}
         {state === "error" && <p className="error" role="alert">{L("Nambari si sahihi au jaribu tena baadaye.", "Invalid number, or try again later.")}</p>}
         <button className="btn wa" disabled={state === "busy"}>{L("Fungua WhatsApp", "Open WhatsApp")}</button>
