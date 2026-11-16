@@ -468,3 +468,53 @@ describe("live AI for the public demo", () => {
     } finally { globalThis.fetch = real; delete process.env.OPENAI_API_KEY; delete process.env.OPENAI_MODEL; }
   });
 });
+
+describe("WhatsApp bot for the public demo", () => {
+  it("passes Meta's setup check only with the right token", async () => {
+    const wa = await import("../api/whatsapp.js");
+    process.env.WA_VERIFY_TOKEN = "verify-me";
+    try {
+      const ok = await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=12345"));
+      expect(ok.status).toBe(200);
+      expect(await ok.text()).toBe("12345");
+      expect((await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=1"))).status).toBe(403);
+    } finally { delete process.env.WA_VERIFY_TOKEN; }
+  });
+  it("answers signed messages once each, with commands, and rejects forged ones", async () => {
+    const wa = await import("../api/whatsapp.js");
+    Object.assign(process.env, { WA_APP_SECRET: "app-secret", WA_TOKEN: "tok", WA_PHONE_ID: "555" });
+    const sent: any[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (url: any, init: any) => { sent.push({ url: String(url), body: JSON.parse(init.body) }); return new Response("{}", { status: 200 }); }) as typeof fetch;
+    const deliver = (id: string, text: string, secret = "app-secret") => {
+      const raw = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id, from: "254700000001", type: "text", text: { body: text } }] } }] }] });
+      const sig = "sha256=" + createHmac("sha256", secret).update(raw).digest("hex");
+      return wa.POST(new Request("https://x/api/whatsapp", { method: "POST", headers: { "x-hub-signature-256": sig }, body: raw }));
+    };
+    try {
+      expect((await deliver("m0", "hello", "not-the-secret")).status).toBe(401);
+      expect(sent).toHaveLength(0);
+      expect((await deliver("m1", "Mgao wa mapato ni asilimia ngapi? simu 0712345678")).status).toBe(200);
+      expect(sent[0].url).toBe("https://graph.facebook.com/v23.0/555/messages");
+      expect(sent[0].body.to).toBe("254700000001");
+      expect(sent[0].body.text.body).toContain("40%");
+      expect(sent[0].body.text.body).toContain("Chanzo");
+      await deliver("m1", "Mgao wa mapato ni asilimia ngapi?"); // Meta retry of the same message
+      expect(sent).toHaveLength(1);
+      await deliver("m2", "lesson 6");
+      expect(sent[1].body.text.body).toContain("Benefit sharing");
+      await deliver("m3", "somo");
+      expect(sent[2].body.text.body).toContain("8. ");
+      await deliver("m4", "Should we sign the contract?");
+      expect(sent[3].body.text.body).toMatch(/cannot tell you to sign|not for an AI/);
+    } finally { globalThis.fetch = real; for (const k of ["WA_APP_SECRET", "WA_TOKEN", "WA_PHONE_ID"]) delete process.env[k]; }
+  });
+  it("reads the language from each message", async () => {
+    const { langOf, reply } = await import("../api/whatsapp.js");
+    expect(langOf("What is a carbon credit?")).toBe("en");
+    expect(langOf("Mkopo wa kaboni ni nini?")).toBe("sw");
+    expect(reply("menu")).toContain("Commands");
+    expect(reply("menyu")).toContain("Amri");
+    expect(reply("maa")).toContain("ɛn-kɔ́p");
+  });
+});

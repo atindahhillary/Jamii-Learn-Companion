@@ -97,6 +97,16 @@ Seven AI seats (Carbon Analyst, Community Lawyer, Knowledge Keeper, Rangeland Ec
 
 Commands on WhatsApp: `JIUNGE <code>`, `SOMO`, `MAENDELEO`, `MENYU`, `ACHA`, `ANZA`.
 
+### WhatsApp on the public demo (no database)
+
+`api/whatsapp.ts` answers WhatsApp messages with the same prepared, sourced answers as the Assistant. It stores nothing, never messages first (so replies stay inside WhatsApp's free 24-hour service window), and reads the language from each message.
+
+1. At developers.facebook.com create an app of type Business and add the WhatsApp product. Meta's free test number can message up to 5 numbers you add.
+2. In Vercel set `WA_TOKEN` (a permanent system-user token for real use; the test token expires after 24 hours), `WA_PHONE_ID` (the phone number ID), `WA_APP_SECRET` (App settings, Basic) and `WA_VERIFY_TOKEN` (any long random string you choose). Redeploy.
+3. In the WhatsApp configuration, set the callback URL to `https://jamii-learn-companion.vercel.app/api/whatsapp`, enter the same verify token, and subscribe to `messages`.
+
+Commands: `menyu`/`menu`, `somo`/`lesson` (list), `somo 3`/`lesson 3`, `michezo`/`games`, `maa`. Anything else gets the prepared answer.
+
 ## Before real communities use this
 
 - Native Kiswahili review of all content, ideally with community members.

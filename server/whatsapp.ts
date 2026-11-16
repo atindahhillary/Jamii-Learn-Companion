@@ -2,6 +2,8 @@ import type { Lang } from "../shared/content.js";
 
 const VERSION = process.env.WA_GRAPH_VERSION || "v23.0";
 export const waConfigured = () => !!(process.env.WA_TOKEN && process.env.WA_PHONE_ID && process.env.WA_BOT_NUMBER);
+// Replying needs only the token and the sending number id; the public bot number is for links into WhatsApp.
+const canSend = () => !!(process.env.WA_TOKEN && process.env.WA_PHONE_ID);
 
 async function post(payload: object) {
   const r = await fetch(`https://graph.facebook.com/${VERSION}/${process.env.WA_PHONE_ID}/messages`, {
@@ -14,7 +16,7 @@ async function post(payload: object) {
 
 // Free-form text is only allowed inside WhatsApp's 24 hour window, which every reply here sits in.
 export async function sendText(to: string, text: string) {
-  if (!waConfigured()) return;
+  if (!canSend()) return;
   await post({ to: to.replace("+", ""), type: "text", text: { body: text.slice(0, 4000) } });
 }
 
