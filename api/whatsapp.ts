@@ -123,9 +123,10 @@ export function reply(raw: string): Out {
 // whether it matched WA_VERIFY_TOKEN is only logged (without the phrase).
 export function GET(req: Request) {
   const u = new URL(req.url), given = u.searchParams.get("hub.verify_token")?.trim(), challenge = u.searchParams.get("hub.challenge");
-  if (u.searchParams.get("hub.mode") !== "subscribe" || !given || !challenge) return new Response("forbidden", { status: 403 });
+  // Meta's challenge is always a number; anything else is refused, so nothing else can be echoed back.
+  if (u.searchParams.get("hub.mode") !== "subscribe" || !given || !challenge || !/^\d{1,20}$/.test(challenge)) return new Response("forbidden", { status: 403 });
   console.log("whatsapp verify: ok", given === process.env.WA_VERIFY_TOKEN?.trim() ? "(phrase matched)" : "(phrase differs, accepted)");
-  return new Response(challenge, { status: 200 });
+  return new Response(challenge, { status: 200, headers: { "content-type": "text/plain", "x-content-type-options": "nosniff" } });
 }
 
 type Incoming = { id: string; from: string; type: string; text?: { body: string }; interactive?: { button_reply?: { id: string }; list_reply?: { id: string } } };

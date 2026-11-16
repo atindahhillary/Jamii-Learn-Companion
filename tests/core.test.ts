@@ -480,6 +480,7 @@ describe("WhatsApp bot for the public demo", () => {
       expect((await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=other&hub.challenge=7"))).status).toBe(200); // the signature, not the phrase, guards messages
       expect((await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.challenge=1"))).status).toBe(403);
       expect((await wa.GET(new Request("https://x/api/whatsapp"))).status).toBe(403);
+      expect((await wa.GET(new Request("https://x/api/whatsapp?hub.mode=subscribe&hub.verify_token=x&hub.challenge=%3Cscript%3E"))).status).toBe(403); // only numeric challenges are echoed
     } finally { delete process.env.WA_VERIFY_TOKEN; }
   });
   it("answers signed messages once each, with commands, and rejects forged ones", async () => {
