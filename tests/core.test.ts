@@ -491,30 +491,45 @@ describe("WhatsApp bot for the public demo", () => {
       const sig = "sha256=" + createHmac("sha256", secret).update(raw).digest("hex");
       return wa.POST(new Request("https://x/api/whatsapp", { method: "POST", headers: { "x-hub-signature-256": sig }, body: raw }));
     };
+    // Messages to people (not read receipts), and the text a person sees in each.
+    const out = () => sent.filter((x) => x.body.to);
+    const shown = (x: any) => x.body.text?.body ?? x.body.interactive?.body?.text ?? "";
     try {
       expect((await deliver("m0", "hello", "not-the-secret")).status).toBe(401);
       expect(sent).toHaveLength(0);
       expect((await deliver("m1", "Mgao wa mapato ni asilimia ngapi? simu 0712345678")).status).toBe(200);
-      expect(sent[0].url).toBe("https://graph.facebook.com/v23.0/555/messages");
-      expect(sent[0].body.to).toBe("254700000001");
-      expect(sent[0].body.text.body).toContain("40%");
-      expect(sent[0].body.text.body).toContain("Chanzo");
+      expect(sent[0].body).toMatchObject({ status: "read", message_id: "m1", typing_indicator: { type: "text" } }); // "typing…" first
+      expect(out()[0].url).toBe("https://graph.facebook.com/v23.0/555/messages");
+      expect(out()[0].body.to).toBe("254700000001");
+      expect(shown(out()[0])).toContain("40%");
+      expect(shown(out()[0])).toContain("Chanzo");
+      const rows = out()[0].body.interactive.action.sections[0].rows;
+      expect(rows.length).toBeGreaterThan(2);
+      for (const r of rows) expect(r.title.length).toBeLessThanOrEqual(24); // WhatsApp's limit
       await deliver("m1", "Mgao wa mapato ni asilimia ngapi?"); // Meta retry of the same message
-      expect(sent).toHaveLength(1);
+      expect(out()).toHaveLength(1);
       await deliver("m2", "lesson 6");
-      expect(sent[1].body.text.body).toContain("Benefit sharing");
+      expect(shown(out()[1])).toContain("Benefit sharing");
+      expect(out()[1].body.interactive.action.buttons[0].reply.id).toBe("en|lesson|7");
       await deliver("m3", "somo");
-      expect(sent[2].body.text.body).toContain("8. ");
+      expect(out()[2].body.interactive.action.sections[0].rows).toHaveLength(8);
       await deliver("m4", "Should we sign the contract?");
-      expect(sent[3].body.text.body).toMatch(/cannot tell you to sign|not for an AI/);
+      expect(shown(out()[3])).toMatch(/cannot tell you to sign|not for an AI/);
+      // Tapping a suggested question answers it, in the language carried by the button.
+      const tapped = JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ id: "m5", from: "254700000001", type: "interactive", interactive: { list_reply: { id: rows[0].id } } }] } }] }] });
+      await wa.POST(new Request("https://x/api/whatsapp", { method: "POST", headers: { "x-hub-signature-256": "sha256=" + createHmac("sha256", "app-secret").update(tapped).digest("hex") }, body: tapped }));
+      expect(shown(out()[4]).length).toBeGreaterThan(40);
     } finally { globalThis.fetch = real; for (const k of ["WA_APP_SECRET", "WA_TOKEN", "WA_PHONE_ID"]) delete process.env[k]; }
   });
-  it("reads the language from each message", async () => {
+  it("reads the language from each message and keeps replies short and tappable", async () => {
     const { langOf, reply } = await import("../api/whatsapp.js");
     expect(langOf("What is a carbon credit?")).toBe("en");
     expect(langOf("Mkopo wa kaboni ni nini?")).toBe("sw");
-    expect(reply("menu")).toContain("Commands");
-    expect(reply("menyu")).toContain("Amri");
-    expect(reply("maa")).toContain("ɛn-kɔ́p");
+    expect(reply("menu").text).toContain("Welcome to Jamii Learn Companion");
+    expect(reply("menyu").text).toContain("Karibu Jamii Learn Companion");
+    expect(reply("menyu").buttons).toHaveLength(3);
+    for (const b of reply("menu").buttons!) expect(b.title.length).toBeLessThanOrEqual(20);
+    expect(reply("maa").text).toContain("ɛn-kɔ́p");
+    expect(reply("What is a carbon credit?").text.length).toBeLessThan(1000); // fits one interactive message
   });
 });
