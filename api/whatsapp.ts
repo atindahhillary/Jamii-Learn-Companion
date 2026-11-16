@@ -120,7 +120,9 @@ export function reply(raw: string): Out {
 // Meta's one-time check when the webhook address is saved in the app dashboard.
 export function GET(req: Request) {
   const u = new URL(req.url), token = process.env.WA_VERIFY_TOKEN;
-  if (token && u.searchParams.get("hub.mode") === "subscribe" && u.searchParams.get("hub.verify_token") === token) return new Response(u.searchParams.get("hub.challenge") ?? "", { status: 200 });
+  // Logged without the phrase itself, so a failed setup can be diagnosed from the Vercel logs.
+  if (token && u.searchParams.get("hub.mode") === "subscribe" && u.searchParams.get("hub.verify_token") === token) { console.log("whatsapp verify: ok"); return new Response(u.searchParams.get("hub.challenge") ?? "", { status: 200 }); }
+  console.log("whatsapp verify: failed", !token ? "(WA_VERIFY_TOKEN not set)" : "(phrase does not match)");
   return new Response("forbidden", { status: 403 });
 }
 
@@ -128,7 +130,7 @@ type Incoming = { id: string; from: string; type: string; text?: { body: string 
 export async function POST(req: Request) {
   const raw = await req.text(), secret = process.env.WA_APP_SECRET;
   // Only Meta knows the app secret, so a valid signature proves the message came from WhatsApp.
-  if (!secret || !verifyMetaSignature(raw, req.headers.get("x-hub-signature-256") ?? undefined, secret)) return new Response("no", { status: 401 });
+  if (!secret || !verifyMetaSignature(raw, req.headers.get("x-hub-signature-256") ?? undefined, secret)) { console.log("whatsapp delivery: bad signature", !secret ? "(WA_APP_SECRET not set)" : ""); return new Response("no", { status: 401 }); }
   let body: any;
   try { body = JSON.parse(raw); } catch { return new Response("ok"); }
   const messages: Incoming[] = (body?.entry ?? []).flatMap((e: any) => e?.changes ?? []).flatMap((c: any) => c?.value?.messages ?? []);
@@ -137,11 +139,12 @@ export async function POST(req: Request) {
     seen.add(m.id);
     if (seen.size > 10000) seen.clear();
     if (!allowed(m.from)) continue;
+    console.log("whatsapp message:", m.type);
     await markRead(m.id);
     const said = m.type === "text" ? m.text?.body ?? "" : m.type === "interactive" ? m.interactive?.button_reply?.id ?? m.interactive?.list_reply?.id ?? "" : "";
     // Voice notes, photos and stickers get a bilingual note, since there is no text to read the language from.
     const out: Out = said ? reply(said) : { text: "🎙️ Kwa sasa ninaelewa ujumbe wa maandishi tu. Andika swali lako, au *menyu*.\n\nFor now I only understand text messages. Type your question, or *menu*." };
-    try { await sendOut(m.from, out); } catch (e) { console.error("whatsapp send failed", (e as Error).message); }
+    try { await sendOut(m.from, out); console.log("whatsapp reply: sent"); } catch (e) { console.error("whatsapp send failed", (e as Error).message); }
   }
   return new Response("ok"); // always 200 to a signed delivery, so Meta does not keep retrying
 }
